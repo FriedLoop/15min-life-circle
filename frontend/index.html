@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>15分钟生活圈体检工具</title>
+    <script type="text/javascript" src="https://api.map.bce.baidu.com/api?v=1.0&type=webgl&ak=erbi0PCgA7d26sF1QO40VzaPkXgdWURU"></script>
+    <style>
+        #container{width:850px;height:620px;border:1px solid #ccc;}
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <script>
+        const map = new BMapGL.Map('container');
+        const point = new BMapGL.Point(113.89,22.90);
+        map.centerAndZoom(point, 12);
+        map.enableScrollWheelZoom(true);
+        // 点击拾取坐标
+        map.addEventListener("click", (e)=>{
+            const lng = e.latlng.lng;
+            const lat = e.latlng.lat;
+            console.log("经度：", lng, "纬度：", lat);
+            alert(`选中坐标：经度${lng},纬度${lat}`);
+        })
+    </script>
+</body>
+</html>
