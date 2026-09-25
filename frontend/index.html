@@ -1,27 +1,112 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>15分钟生活圈体检工具</title>
-    <script type="text/javascript" src="https://api.map.bce.baidu.com/api?v=1.0&type=webgl&ak=erbi0PCgA7d26sF1QO40VzaPkXgdWURU"></script>
+    <title>15分钟生活圈</title>
     <style>
-        #container{width:850px;height:620px;border:1px solid #ccc;}
+        #container {
+            width: 100%;
+            height: 650px;
+            border: 1px solid #aaa;
+        }
     </style>
 </head>
 <body>
+    <button id="searchBtn">查询15分钟生活圈配套</button>
+    <span>请先点击地图选择中心点</span>
     <div id="container"></div>
+
     <script>
-        const map = new BMapGL.Map('container');
-        const point = new BMapGL.Point(113.89,22.90);
-        map.centerAndZoom(point, 12);
-        map.enableScrollWheelZoom(true);
-        // 点击拾取坐标
-        map.addEventListener("click", (e)=>{
-            const lng = e.latlng.lng;
-            const lat = e.latlng.lat;
-            console.log("经度：", lng, "纬度：", lat);
-            alert(`选中坐标：经度${lng},纬度${lat}`);
+        let map = null;
+        let selectedPoint = null;
+        let circleOverlay = null; // 生活圈圆形
+        let poiMarkers = [];       // 保存poi标记，方便清空
+
+        function initMap() {
+            const mapDom = document.getElementById("container");
+            map = new BMap.Map(mapDom);
+            const point = new BMap.Point(113.7517,23.0206);
+            map.centerAndZoom(point, 12);
+            map.enableScrollWheelZoom(true);
+
+            // 地图点击事件：保存选中点 + 绘制中心点标记
+            map.addEventListener("click", function(e){
+                selectedPoint = e.point;
+                console.log("选中坐标：", selectedPoint.lng, selectedPoint.lat);
+                map.clearOverlays();
+                poiMarkers = [];
+                circleOverlay = null;
+                const marker = new BMap.Marker(selectedPoint);
+                map.addOverlay(marker);
+            })
+        }
+
+        document.getElementById("searchBtn").addEventListener("click",async ()=>{
+            if(!map){
+                alert("地图还未加载完成！");
+                return;
+            }
+            if(!selectedPoint){
+                alert("请先点击地图，选择一个中心点！");
+                return;
+            }
+            const lng = selectedPoint.lng;
+            const lat = selectedPoint.lat;
+            console.log("发送POST请求，经纬度：", lng, lat);
+
+            try {
+                const res = await fetch(`http://127.0.0.1:8000/api/get_poi`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        lng: lng,
+                        lat: lat
+                    })
+                });
+                const data = await res.json();
+                console.log("后端返回全部数据", data);
+
+                // ========== 绘制1000米圆形缓冲区 ==========
+                if(circleOverlay){
+                    map.removeOverlay(circleOverlay);
+                }
+                circleOverlay = new BMap.Circle(
+                    new BMap.Point(data.center.lng, data.center.lat),
+                    data.radius,
+                    {strokeColor:"blue", fillColor:"rgba(0,100,255,0.2)"}
+                );
+                map.addOverlay(circleOverlay);
+
+                // ========== 批量渲染POI点位 ==========
+                // 清空旧的poi标记
+                poiMarkers.forEach(m=>map.removeOverlay(m));
+                poiMarkers = [];
+
+                data.poi_list.forEach(poi => {
+                    const p = new BMap.Point(poi.lng, poi.lat);
+                    const marker = new BMap.Marker(p);
+                    // 弹窗信息
+                    const infoWindow = new BMap.InfoWindow(`
+                        <b>${poi.name}</b><br/>
+                        类型：${poi.type}<br/>
+                        地址：${poi.address}
+                    `);
+                    marker.addEventListener("click", ()=>{
+                        map.openInfoWindow(infoWindow, p);
+                    })
+                    map.addOverlay(marker);
+                    poiMarkers.push(marker);
+                })
+                alert(`查询成功，共找到 ${data.poi_list.length} 个配套设施`);
+
+            } catch (err) {
+                console.error("请求失败", err);
+                alert("查询失败，请查看浏览器控制台F12");
+            }
         })
     </script>
+    <script type="text/javascript" src="https://api.map.baidu.com/api?v=3.0&ak=erbi0PCgA7d26sF1QO40VzaPkXgdWURU&callback=initMap"></script>
 </body>
 </html>
