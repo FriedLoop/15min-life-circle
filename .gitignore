@@ -140,3 +140,5 @@ cython_debug/
 .env
 __pycache__/
 *.pyc
+
+.idea/
