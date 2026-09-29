@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.routers import geocode, health, poi
+from app.routers import geocode, health, isochrone, poi
 from app.services.baidu_client import BaiduApiError
 
 app = FastAPI(
@@ -41,3 +41,4 @@ async def baidu_api_error_handler(request: Request, exc: BaiduApiError) -> JSONR
 app.include_router(health.router)
 app.include_router(poi.router)
 app.include_router(geocode.router)
+app.include_router(isochrone.router)

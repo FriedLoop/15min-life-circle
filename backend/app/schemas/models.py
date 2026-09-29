@@ -88,3 +88,55 @@ class ReverseGeocodeResponse(BaseModel):
     district: str = ""
     lng: float
     lat: float
+
+
+# ---------------------------------------------------------------------------
+# 等时圈
+# ---------------------------------------------------------------------------
+class IsochronePoint(BaseModel):
+    """单个网格点的可达性结果。
+
+    前端据此绘制热力图：用 duration 做颜色分级，值越小越「核心」。
+    """
+
+    lng: float
+    lat: float
+    duration: int | None = Field(
+        default=None, description="步行耗时（秒）；None 表示该点算路失败"
+    )
+    distance_m: int | None = Field(default=None, description="路网距离（米）")
+    reachable: bool = Field(default=False, description="是否在时间阈值内可达")
+
+
+class IsochroneRequest(BaseModel):
+    """等时圈计算请求。"""
+
+    lng: float = Field(..., description="中心点经度（BD09）")
+    lat: float = Field(..., description="中心点纬度（BD09）")
+    walk_minutes: int = Field(
+        default=15, ge=1, le=60, description="步行时间阈值（分钟）"
+    )
+    step_m: int = Field(default=200, ge=50, le=1000, description="网格间隔（米）")
+    radius_m: int | None = Field(
+        default=None, ge=100, le=5000, description="网格覆盖半径（米）；为空取配置值"
+    )
+
+
+class IsochroneResponse(BaseModel):
+    """等时圈计算响应。"""
+
+    center: CenterPoint
+    walk_minutes: int
+    threshold_seconds: int
+    radius_m: int
+    step_m: int
+    total_points: int = Field(..., description="参与计算的网格点总数")
+    reachable_points: int = Field(..., description="阈值内可达的点数")
+    failed_points: int = Field(default=0, description="算路失败的点数")
+    points: list[IsochronePoint]
+    polygon: list[list[float]] = Field(
+        default_factory=list, description="可达区域凸包边界 [[lng, lat], ...]"
+    )
+    degraded: bool = Field(default=False, description="是否为降级估算结果")
+    cached: bool = Field(default=False, description="结果是否来自缓存（未消耗配额）")
+    message: str = Field(default="", description="降级或异常说明")
