@@ -73,8 +73,8 @@ jobs:
           curl -fsS http://localhost:8000/api/health
           curl -fsS http://localhost:8000/api/health | grep -q '"status":"ok"'
 
-          echo "--- 前端页面 ---"
-          curl -fsS http://localhost:8000/index.html | grep -q '<html'
+          echo "--- 前端页面（根路径应直接返回应用界面）---"
+          curl -fsS http://localhost:8000/ | grep -q '<html'
 
           echo "Docker 一键部署验证通过：评审按 README 启动后可直接访问服务与前端"
 
