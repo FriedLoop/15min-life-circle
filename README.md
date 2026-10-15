@@ -251,7 +251,6 @@ score = 100 × Σ(权重ᵢ × 覆盖率ᵢ) / Σ(权重ᵢ)
 │   └── js/             config api map layers charts main
 ├── docs/               技术方案.md / 测试报告.md
 ├── .github/workflows/  GitHub Actions 流水线（ci.yml）
-├── .workflow/          Gitee Go 流水线（MasterPipeline.yml）
 ├── ruff.toml           静态检查规则
 ├── Dockerfile
 ├── docker-compose.yml
@@ -287,20 +286,17 @@ score = 100 × Σ(权重ᵢ × 覆盖率ᵢ) / Σ(权重ᵢ)
 
 ## 十一、CI/CD 与代码检查
 
-仓库提供**两套等价的流水线配置**，任一平台均可独立完成自动化构建与代码格式化检查：
+**构建状态**：[![CI](https://github.com/FriedLoop/15min-life-circle/actions/workflows/ci.yml/badge.svg)](https://github.com/FriedLoop/15min-life-circle/actions/workflows/ci.yml)
+—— 全部通过，运行记录见徽章链接。
 
-| 平台 | 配置文件 | 状态 |
-|---|---|---|
-| **GitHub Actions** | `.github/workflows/ci.yml` | ✅ 已启用（公开仓库免费不限时长） |
-| Gitee Go | `.workflow/MasterPipeline.yml` | 配置就绪；受免费构建时长余额限制 |
-
-推送到 `master` / `dev` 后自动执行：
+CI 由 **GitHub Actions** 承载，配置见 `.github/workflows/ci.yml`。
+推送到 `master` / `dev` 或提交 PR 时自动执行：
 
 1. `pip install -r backend/requirements.txt` 安装依赖
 2. `ruff check backend/` 静态检查与格式检查
 3. `python -m pytest backend/tests/ -v` 运行单元测试（外部接口全部 mock，**不消耗 API 配额**）
 
-GitHub Actions 另有一个独立的 `docker` job，用于自动验证「评审可用 Docker 一键跑通」这一交付要求：
+另有一个独立的 `docker` job，用于自动验证「评审可用 Docker 一键跑通」这一交付要求：
 
 - `docker build` 构建镜像
 - 启动容器，断言 `GET /` 返回前端页面、`GET /api/health` 返回 `status: ok`
