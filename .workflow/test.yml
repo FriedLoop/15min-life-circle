@@ -1,9 +1,15 @@
-image: ubuntu:22.04
-stages:
-  - test
-
-test_job:
-  stage: test
-  script:
-    - echo "使用Gitee云构建，会消耗核分"
-    - uname -a
+pipeline:
+  name: test-pipeline
+  displayName: 测试云构建
+  stages:
+    - stage:
+        name: test-stage
+        displayName: 测试阶段
+        jobs:
+          - job:
+              name: test-job
+              displayName: 打印测试
+              image: ubuntu:22.04
+              script:
+                - echo "Gitee Go云构建测试，会消耗仓库核分"
+                - uname -a
