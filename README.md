@@ -248,6 +248,8 @@ score = 100 × Σ(权重ᵢ × 覆盖率ᵢ) / Σ(权重ᵢ)
 │   ├── css/style.css
 │   └── js/             config api map layers charts main
 ├── docs/               技术方案.md / 测试报告.md
+├── .workflow/          Gitee Go 流水线（MasterPipeline.yml）
+├── ruff.toml           静态检查规则
 ├── Dockerfile
 ├── docker-compose.yml
 ├── start.sh / start.ps1
@@ -276,6 +278,36 @@ score = 100 × Σ(权重ᵢ × 覆盖率ᵢ) / Σ(权重ᵢ)
 - **前端**：原生 HTML + CSS + JavaScript（无构建步骤，评审可直接运行）
 - **地图**：百度地图 JavaScript API、Web 服务 API
 - **图表**：纯 SVG 自绘（`js/charts.js`），不引入 ECharts 等 CDN 依赖
+- **代码质量**：pytest（单元测试）+ ruff（静态检查）
+
+---
+
+## 十一、CI/CD 与代码检查
+
+### 自动化流水线（Gitee Go）
+
+仓库内置 Gitee Go 流水线配置 `.workflow/MasterPipeline.yml`，代码推送后自动执行：
+
+1. `pip install -r backend/requirements.txt` 安装依赖
+2. `python -m pytest backend/tests/ -v` 运行单元测试（外部接口全部 mock，**不消耗 API 配额**）
+3. `ruff check backend/` 静态检查与格式检查
+
+> **启用方式**：Gitee 仓库 → DevOps → Gitee Go → 开通并关联本仓库。
+> 自动触发条件（分支、事件类型）在流水线的「高级设置 → 触发事件」中配置。
+> 注：Gitee Go 免费构建时长有限，余额不足时流水线无法触发。
+
+### 本地等价的检查（与 CI 完全一致）
+
+在**仓库根目录**执行：
+
+```powershell
+pip install -r backend/requirements.txt
+python -m pytest backend/tests/ -v
+ruff check backend/          # 检查
+ruff check backend/ --fix    # 自动修复
+```
+
+规则集定义在 `ruff.toml`（pycodestyle + pyflakes + isort + pyupgrade + bugbear）。
 
 ---
 

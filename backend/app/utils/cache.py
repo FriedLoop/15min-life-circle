@@ -18,7 +18,8 @@
 
 import time
 from collections import OrderedDict
-from typing import Any, Hashable
+from collections.abc import Hashable
+from typing import Any
 
 from app.core.config import settings
 

@@ -121,7 +121,7 @@ async def compute_isochrone(
     reachable_coords: list[tuple[float, float]] = []
     failed = 0
 
-    for (point_lng, point_lat), route in zip(grid_points, routes):
+    for (point_lng, point_lat), route in zip(grid_points, routes, strict=False):
         if route is None:
             failed += 1
             iso_points.append(IsochronePoint(lng=point_lng, lat=point_lat))

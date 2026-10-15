@@ -23,7 +23,7 @@ import asyncio
 from app.core import constants
 from app.core.config import settings
 from app.schemas.models import PoiItem, PoiSearchResponse
-from app.services.baidu_client import BaiduApiError, baidu_client
+from app.services.baidu_client import baidu_client
 from app.utils.cache import poi_cache
 from app.utils.geo import haversine_distance, quantize_coord
 
@@ -183,7 +183,7 @@ async def search_all_categories(
     failed: list[str] = []
     errors: list[Exception] = []
 
-    for category, outcome in zip(targets, outcomes):
+    for category, outcome in zip(targets, outcomes, strict=False):
         if isinstance(outcome, Exception):
             errors.append(outcome)
             failed.append(category)

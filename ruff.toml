@@ -1,0 +1,19 @@
+# Ruff 静态检查配置
+#
+# 用途：对应赛题「开源工程规范」中「自动化构建与代码格式化检查」一项，
+#       由 Gitee Go 流水线（.workflow/MasterPipeline.yml）执行：
+#           ruff check backend/
+#
+# 本地执行：  ruff check backend/          # 检查
+#             ruff check backend/ --fix    # 自动修复
+
+target-version = "py311"
+line-length = 100
+
+[lint]
+# pycodestyle 错误(E4/E7/E9/W) + pyflakes(F) + isort(I) + pyupgrade(UP) + bugbear(B)
+select = ["E4", "E7", "E9", "F", "W", "I", "UP", "B"]
+
+[lint.isort]
+# app 是本项目自身的包，声明为 first-party，避免被当作第三方库参与排序
+known-first-party = ["app"]

@@ -231,7 +231,7 @@ async def compute_blindspot(
             return_exceptions=True,
         )
 
-        for (i, cat, _candidates), outcome in zip(pending, outcomes):
+        for (i, cat, _candidates), outcome in zip(pending, outcomes, strict=False):
             precise_calls += 1
 
             if isinstance(outcome, Exception) or not outcome:

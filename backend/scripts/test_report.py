@@ -67,7 +67,7 @@ async def run(
     print(f"  网格参数 ：半径 {iso.radius_m}m，间隔 {iso.step_m}m")
     print(f"  降级模式 ：{'是' if iso.degraded else '否'}")
 
-    print(f"\n【设施覆盖】圈内数量 / 可达点覆盖率")
+    print("\n【设施覆盖】圈内数量 / 可达点覆盖率")
     for cat in result.coverage:
         count = result.poi_counts.get(cat, 0)
         rate = result.coverage[cat]
