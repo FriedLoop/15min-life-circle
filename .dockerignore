@@ -1,0 +1,29 @@
+# 构建镜像时排除的内容：减小体积、避免把虚拟环境和密钥打进镜像
+
+.git/
+.gitignore
+.idea/
+.vscode/
+
+# 虚拟环境（容器内用系统 Python，不需要本地 venv）
+backend/venv/
+venv/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+
+# 密钥：绝不打进镜像，由运行时 env_file 注入
+backend/.env
+.env
+
+# 文档与临时文件
+docs/
+*.md
+!README.md
+.DS_Store
+Thumbs.db
+
+# 测试与缓存
+backend/tests/
+.pytest_cache/
+.ruff_cache/

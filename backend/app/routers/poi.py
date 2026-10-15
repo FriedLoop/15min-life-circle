@@ -12,7 +12,8 @@ router = APIRouter(prefix="/api", tags=["poi"])
 async def get_poi(data: PoiSearchRequest) -> PoiSearchResponse:
     """检索中心点周边的民生设施。
 
-    一次请求即可覆盖菜市场、药店、小学等 10 类设施（并集检索），
+    内部**按类别分别检索**（10 类共 10 次地点检索请求），而非一次并集检索——
+    并集检索只返回前 20 条且按相关性排序，会把菜市场、小学这类稀疏类别挤掉。
     返回值已按类别归一化，并附各类别数量统计。
     """
     return await poi_service.search_nearby(

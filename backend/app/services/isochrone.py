@@ -4,7 +4,9 @@
     1. 以中心点生成半径 R、间隔 S 的网格
     2. 对每个网格点调用「步行批量算路」，取得真实步行耗时
     3. 筛选耗时 ≤ 阈值（默认 900 秒）的点 → 可达区域
-    4. 取可达点的凸包 → 等时圈边界多边形
+    4. 返回逐点耗时与可达标记。等时圈的**边界不在后端生成**：
+       前端按网格单元逐一绘制色块，再逐格描边还原真实外轮廓。
+       （不用凸包：它会把凹陷与缺口抹平，反而丢掉「路网 ≠ 直线」的证据）
 
 为何用网格法而非射线法：
     射线法沿若干方向各算一条路径，调用量小，但只得到边界上稀疏的点，
@@ -24,7 +26,6 @@ from app.services.baidu_client import BaiduApiError
 from app.services.routematrix import RouteInfo, walking_matrix
 from app.utils.cache import isochrone_cache
 from app.utils.geo import (
-    convex_hull,
     generate_square_grid,
     haversine_distance,
     quantize_coord,
@@ -88,7 +89,7 @@ async def compute_isochrone(
         radius_m: 网格覆盖半径（米），默认取配置
 
     Returns:
-        等时圈结果，含逐点耗时（供热力图）与凸包边界（供绘制轮廓）。
+        等时圈结果，含逐点耗时与可达标记（供前端绘制及盲区分析复用）。
     """
     minutes = walk_minutes or settings.WALK_MINUTES
     threshold = minutes * 60
@@ -139,8 +140,7 @@ async def compute_isochrone(
         if reachable:
             reachable_coords.append((point_lng, point_lat))
 
-    # 4. 凸包边界（少于 3 个点无法构成多边形）
-    hull = convex_hull(reachable_coords) if len(reachable_coords) >= 3 else []
+    reached_count = len(reachable_coords)
 
     result = IsochroneResponse(
         center={"lng": lng, "lat": lat},
@@ -149,10 +149,9 @@ async def compute_isochrone(
         radius_m=int(radius),
         step_m=int(step),
         total_points=len(grid_points),
-        reachable_points=len(reachable_coords),
+        reachable_points=reached_count,
         failed_points=failed,
         points=iso_points,
-        polygon=[[x, y] for x, y in hull],
         degraded=degraded,
         message=message,
     )

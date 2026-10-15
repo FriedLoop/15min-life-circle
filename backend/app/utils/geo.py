@@ -79,44 +79,6 @@ def generate_square_grid(
     return points
 
 
-def convex_hull(points: list[tuple[float, float]]) -> list[tuple[float, float]]:
-    """求二维点集的凸包（Andrew monotone chain，O(n log n)）。
-
-    等时圈的可达点集是离散网格，取其凸包即得包围全部可达点的
-    最小凸多边形，可作为等时圈的边界轮廓绘制在地图上。
-
-    Args:
-        points: (lng, lat) 序列
-
-    Returns:
-        按逆时针排列的凸包顶点；点数不足 3 时原样返回。
-    """
-    unique = sorted(set(points))
-    if len(unique) <= 2:
-        return unique
-
-    def cross(o: tuple[float, float], a: tuple[float, float], b: tuple[float, float]) -> float:
-        """叉积，>0 表示 o->a->b 左转。"""
-        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
-
-    # 下凸包
-    lower: list[tuple[float, float]] = []
-    for p in unique:
-        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
-            lower.pop()
-        lower.append(p)
-
-    # 上凸包
-    upper: list[tuple[float, float]] = []
-    for p in reversed(unique):
-        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0:
-            upper.pop()
-        upper.append(p)
-
-    # 首尾点各出现两次，去掉重复的尾点
-    return lower[:-1] + upper[:-1]
-
-
 def quantize_coord(lng: float, lat: float, meters: float) -> tuple[int, int]:
     """把坐标量化到指定米数的网格。
 

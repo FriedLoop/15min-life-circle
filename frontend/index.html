@@ -2,111 +2,147 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>15分钟生活圈</title>
-    <style>
-        #container {
-            width: 100%;
-            height: 650px;
-            border: 1px solid #aaa;
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>15分钟生活圈 · 智能体检助手</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <button id="searchBtn">查询15分钟生活圈配套</button>
-    <span>请先点击地图选择中心点</span>
-    <div id="container"></div>
+    <div id="app">
+        <!-- 顶部标题栏 -->
+        <header id="topbar">
+            <h1>15分钟生活圈 · 智能体检助手</h1>
+            <div id="status-bar">
+                <span id="backend-status" class="badge badge-warn">连接中…</span>
+                <span id="quota-hint" class="hint">每次分析会消耗地图 API 配额，相同位置会自动复用缓存</span>
+            </div>
+        </header>
 
-    <script>
-        let map = null;
-        let selectedPoint = null;
-        let circleOverlay = null; // 生活圈圆形
-        let poiMarkers = [];       // 保存poi标记，方便清空
+        <!-- 左侧控制面板 -->
+        <aside id="sidebar">
+            <section class="panel">
+                <h2>1. 选择中心点</h2>
+                <div class="field">
+                    <label>示例点位</label>
+                    <select id="sample-select">
+                        <option value="">— 加载中 —</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>或搜索地点</label>
+                    <div class="row">
+                        <input type="text" id="address-input" placeholder="如：东莞理工学院莞城校区">
+                        <button id="geocode-btn" class="btn">定位</button>
+                    </div>
+                </div>
+                <div class="field">
+                    <label>或直接在地图上点击</label>
+                    <div class="coord-display">
+                        当前：<span id="coord-text">未选择</span>
+                    </div>
+                </div>
+            </section>
 
-        function initMap() {
-            const mapDom = document.getElementById("container");
-            map = new BMap.Map(mapDom);
-            const point = new BMap.Point(113.7517,23.0206);
-            map.centerAndZoom(point, 12);
-            map.enableScrollWheelZoom(true);
+            <section class="panel">
+                <h2>2. 分析参数</h2>
+                <div class="field">
+                    <label>步行时间：<b id="walk-minutes-value">15</b> 分钟</label>
+                    <input type="range" id="walk-minutes" min="5" max="30" step="5" value="15">
+                </div>
+                <div class="field">
+                    <label>网格精度</label>
+                    <select id="grid-step">
+                        <option value="300">300 m — 最省配额，边界较粗</option>
+                        <option value="200">200 m — 较省配额</option>
+                        <option value="150" selected>150 m — 默认</option>
+                        <option value="100">100 m — 精细，配额消耗高</option>
+                        <option value="75">75 m — 最精细，配额消耗很高</option>
+                    </select>
+                    <div class="hint" id="grid-hint">
+                        间隔越小，等时圈边界越精细、可达网格点越多，但算路调用量按平方增长
+                    </div>
+                </div>
+                <div class="field">
+                    <label>关注设施类别</label>
+                    <div id="category-list" class="checkbox-group">
+                        <span class="hint">从后端加载中…</span>
+                    </div>
+                    <div class="row" style="margin-top:6px">
+                        <button id="cat-all" class="btn btn-small">全选</button>
+                        <button id="cat-key" class="btn btn-small">仅关键三类</button>
+                    </div>
+                </div>
+                <button id="analyze-btn" class="btn btn-primary btn-block">开始体检</button>
+            </section>
 
-            // 地图点击事件：保存选中点 + 绘制中心点标记
-            map.addEventListener("click", function(e){
-                selectedPoint = e.point;
-                console.log("选中坐标：", selectedPoint.lng, selectedPoint.lat);
-                map.clearOverlays();
-                poiMarkers = [];
-                circleOverlay = null;
-                const marker = new BMap.Marker(selectedPoint);
-                map.addOverlay(marker);
-            })
-        }
+            <section class="panel" id="report-panel" hidden>
+                <h2>3. 体检报告</h2>
+                <div id="report-address" class="report-address"></div>
 
-        document.getElementById("searchBtn").addEventListener("click",async ()=>{
-            if(!map){
-                alert("地图还未加载完成！");
-                return;
-            }
-            if(!selectedPoint){
-                alert("请先点击地图，选择一个中心点！");
-                return;
-            }
-            const lng = selectedPoint.lng;
-            const lat = selectedPoint.lat;
-            console.log("发送POST请求，经纬度：", lng, lat);
+                <div class="score-box">
+                    <div class="score-value"><span id="health-score">--</span><small>/100</small></div>
+                    <div class="score-label">生活圈健康度</div>
+                    <div class="score-bar"><div id="health-bar"></div></div>
+                </div>
 
-            try {
-                const res = await fetch(`http://127.0.0.1:8000/api/get_poi`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        lng: lng,
-                        lat: lat
-                    })
-                });
-                const data = await res.json();
-                console.log("后端返回全部数据", data);
+                <div id="summary-grid" class="summary-grid"></div>
+                <div id="blindspot-note" class="coverage-note"></div>
 
-                // ========== 绘制1000米圆形缓冲区 ==========
-                if(circleOverlay){
-                    map.removeOverlay(circleOverlay);
-                }
-                circleOverlay = new BMap.Circle(
-                    new BMap.Point(data.center.lng, data.center.lat),
-                    data.radius,
-                    {strokeColor:"blue", fillColor:"rgba(0,100,255,0.2)"}
-                );
-                map.addOverlay(circleOverlay);
+                <div class="chart-block">
+                    <h3>设施覆盖率</h3>
+                    <div class="coverage-note">
+                        覆盖率 = 可达点 <b>1km 内</b>能触及该类设施的比例；
+                        圈内设施 = <b>15 分钟等时圈内</b>的数量。
+                        两者口径不同，因此会出现「圈内 0 个但覆盖率 &gt; 0」的情况。
+                    </div>
+                    <div id="chart-coverage" class="chart"></div>
+                </div>
+                <div class="chart-block">
+                    <h3>各类别得分</h3>
+                    <div id="chart-radar" class="chart"></div>
+                </div>
+            </section>
+        </aside>
 
-                // ========== 批量渲染POI点位 ==========
-                // 清空旧的poi标记
-                poiMarkers.forEach(m=>map.removeOverlay(m));
-                poiMarkers = [];
+        <!-- 地图主区域 -->
+        <main id="map-wrap">
+            <div id="map-container"></div>
+            <div id="map-legend">
+                <div class="legend-title">图例</div>
 
-                data.poi_list.forEach(poi => {
-                    const p = new BMap.Point(poi.lng, poi.lat);
-                    const marker = new BMap.Marker(p);
-                    // 弹窗信息
-                    const infoWindow = new BMap.InfoWindow(`
-                        <b>${poi.name}</b><br/>
-                        类型：${poi.type}<br/>
-                        地址：${poi.address}
-                    `);
-                    marker.addEventListener("click", ()=>{
-                        map.openInfoWindow(infoWindow, p);
-                    })
-                    map.addOverlay(marker);
-                    poiMarkers.push(marker);
-                })
-                alert(`查询成功，共找到 ${data.poi_list.length} 个配套设施`);
+                <div class="legend-sub">设施可达性（仅等时圈内）</div>
+                <div class="legend-gradient"></div>
+                <div class="legend-scale"><span>便利</span><span>匮乏（盲区）</span></div>
+                <div id="legend-grid" class="legend-grid">网格单元：—</div>
 
-            } catch (err) {
-                console.error("请求失败", err);
-                alert("查询失败，请查看浏览器控制台F12");
-            }
-        })
-    </script>
-    <script type="text/javascript" src="https://api.map.baidu.com/api?v=3.0&ak=erbi0PCgA7d26sF1QO40VzaPkXgdWURU&callback=initMap"></script>
+                <div class="legend-sub">标记</div>
+                <div class="legend-item"><i class="boundary-line"></i>等时圈边界</div>
+                <div class="legend-item">
+                    <svg class="shape-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="16" viewBox="0 0 14 18">
+                        <path d="M7 0C3.1 0 0 3.1 0 7c0 4.4 7 11 7 11s7-6.6 7-11c0-3.9-3.1-7-7-7z" fill="#e83828"/>
+                        <circle cx="7" cy="6.8" r="2.6" fill="#fff"/>
+                    </svg>
+                    分析中心点
+                </div>
+
+                <div class="legend-sub">设施类别（形状 + 颜色）</div>
+                <div id="legend-categories" class="legend-cats"></div>
+            </div>
+            <div id="loading-mask" hidden>
+                <div class="spinner"></div>
+                <div id="loading-text">正在分析…</div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 图表改为纯 SVG 自绘（js/charts.js），不再引入 ECharts，
+         避免 CDN 在离线/内网环境下加载失败导致图表区空白 -->
+
+    <!-- 业务脚本按顺序加载：配置 → 接口 → 地图 → 图层 → 图表 → 入口 -->
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/layers.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>

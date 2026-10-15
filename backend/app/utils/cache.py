@@ -1,7 +1,8 @@
 """进程内结果缓存。
 
 为什么需要：
-    批量算路日配额 5000 条，单次等时圈分析约 113 条（即网格点数）。
+    批量算路日配额 5000 条，单次等时圈分析的算路条数约等于网格点数
+    （默认 150m 间隔为 197 条；200m 间隔为 113 条）。
     开发调试反复调用、前端连续点击、评审反复演示，
     都可能在几分钟内把当天配额烧光，之后所有接口直接不可用。
 
@@ -63,6 +64,19 @@ class TTLCache:
 
 # 等时圈结果缓存。坐标相近（默认 50m 内）视为同一位置，避免拖动地图产生大量近似键
 isochrone_cache = TTLCache(
+    max_size=settings.CACHE_MAX_SIZE,
+    ttl_seconds=settings.CACHE_TTL_SECONDS,
+)
+
+# POI 检索缓存：日配额仅 100 次，是本项目最紧的资源，必须缓存。
+# 容量给得更大，因为单次分析就要查 10 个类别
+poi_cache = TTLCache(
+    max_size=settings.CACHE_MAX_SIZE * 4,
+    ttl_seconds=settings.CACHE_TTL_SECONDS,
+)
+
+# 盲区与体检报告缓存：它们由等时圈和 POI 组合而成，开销更大
+analysis_cache = TTLCache(
     max_size=settings.CACHE_MAX_SIZE,
     ttl_seconds=settings.CACHE_TTL_SECONDS,
 )

@@ -1,0 +1,516 @@
+/* 15分钟生活圈 · 智能体检助手
+   布局：顶栏 + 左侧控制面板 + 右侧地图 */
+
+:root {
+    --primary: #1a73e8;
+    --primary-dark: #1557b0;
+    --bg: #f4f6f9;
+    --panel: #ffffff;
+    --border: #e3e8ef;
+    --text: #1f2937;
+    --muted: #6b7280;
+
+    /* 等时圈分级配色：由近及远，绿 → 黄 → 红 */
+    --fast: #16a34a;
+    --mid: #f59e0b;
+    --slow: #f97316;
+    --blind: #dc2626;
+    --center: #1a73e8;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+/* 修复：作者样式里的 display 会覆盖 hidden 属性自带的 display:none，
+   导致 JS 里 `el.hidden = true` 完全失效。
+   （本例中 #loading-mask 设置了 display:flex，于是遮罩永远藏不住） */
+[hidden] {
+    display: none !important;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+}
+
+#app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* ---------------- 顶栏 ---------------- */
+#topbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 20px;
+    height: 56px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    z-index: 10;
+}
+
+#topbar h1 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+}
+
+#status-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+}
+
+.badge {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.badge-ok {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.badge-warn {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.badge-error {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.hint {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+/* ---------------- 主体布局 ----------------
+   顶栏固定 56px，侧栏与地图用绝对定位填满剩余空间 */
+#sidebar {
+    position: absolute;
+    top: 56px;
+    bottom: 0;
+    left: 0;
+    width: 380px;
+    overflow-y: auto;
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    padding: 14px;
+}
+
+#map-wrap {
+    position: absolute;
+    top: 56px;
+    bottom: 0;
+    left: 380px;
+    right: 0;
+}
+
+#map-container {
+    width: 100%;
+    height: 100%;
+}
+
+/* ---------------- 面板 ---------------- */
+.panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 14px;
+}
+
+.panel h2 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.panel h3 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.field {
+    margin-bottom: 12px;
+}
+
+.field label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 5px;
+}
+
+.row {
+    display: flex;
+    gap: 8px;
+}
+
+select,
+input[type="text"] {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    background: #fff;
+    color: var(--text);
+}
+
+select:focus,
+input[type="text"]:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+input[type="range"] {
+    width: 100%;
+}
+
+.coord-display {
+    font-size: 12px;
+    color: var(--muted);
+    background: #f9fafb;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    padding: 7px 10px;
+}
+
+/* ---------------- 按钮 ---------------- */
+.btn {
+    padding: 7px 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+}
+
+.btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.btn-primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+    font-weight: 500;
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+    color: #fff;
+}
+
+.btn-block {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+}
+
+.btn-small {
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+.btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* ---------------- 类别复选 ---------------- */
+.checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.cat-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 9px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    font-size: 12px;
+    cursor: pointer;
+    user-select: none;
+    background: #fff;
+}
+
+.cat-item.checked {
+    background: #e8f0fe;
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* ---------------- 报告区 ---------------- */
+.report-address {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+
+.warn-text {
+    color: #dc2626;
+    font-weight: 500;
+}
+
+.score-box {
+    text-align: center;
+    padding: 12px 0 14px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+}
+
+.score-value {
+    font-size: 38px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--primary);
+}
+
+.score-value small {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--muted);
+    margin-left: 2px;
+}
+
+.score-label {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+}
+
+.score-bar {
+    height: 6px;
+    background: #eef2f7;
+    border-radius: 3px;
+    margin: 10px 20px 0;
+    overflow: hidden;
+}
+
+.score-bar>div {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #f59e0b, #16a34a);
+    transition: width 0.6s ease;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.summary-item {
+    background: #f9fafb;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+
+.summary-item .k {
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.summary-item .v {
+    font-size: 17px;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+/* 口径说明：解释「覆盖率」与「圈内设施」两个指标的区别 */
+.coverage-note {
+    font-size: 11px;
+    color: var(--muted);
+    background: #f9fafb;
+    border-left: 3px solid var(--border);
+    border-radius: 0 4px 4px 0;
+    padding: 6px 8px;
+    margin-bottom: 8px;
+    line-height: 1.6;
+}
+
+.chart-block {
+    margin-bottom: 14px;
+}
+
+.chart {
+    width: 100%;
+}
+
+/* 自绘 SVG 图表：随容器宽度自适应 */
+.svg-chart {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.chart-empty {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    padding: 30px 0;
+}
+
+/* ---------------- 地图图例 ---------------- */
+#map-legend {
+    position: absolute;
+    left: 14px;
+    bottom: 14px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    z-index: 5;
+}
+
+.legend-title {
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    color: var(--muted);
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.dot-blind { background: var(--blind); }
+.dot-center { background: var(--center); }
+
+/* 等时圈边界线的图例样式 */
+.boundary-line {
+    display: inline-block;
+    width: 14px;
+    height: 2px;
+    background: #111827;
+    vertical-align: middle;
+    opacity: 0.7;
+}
+
+/* 图例分组标题 */
+.legend-sub {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text);
+    margin: 9px 0 4px;
+}
+
+/* 等时圈渐变色带：配色需与 layers.js 中的 _ramp 保持一致 */
+.legend-gradient {
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #22c55e, #84cc16, #facc15, #f97316, #ef4444);
+}
+
+.legend-scale {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 3px;
+}
+
+.legend-grid {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 5px;
+}
+
+.legend-cats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 10px;
+}
+
+.legend-cats .cat {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+/* 图例中的形状小图标 */
+.shape-icon {
+    display: inline-block;
+    vertical-align: -2px;
+}
+
+/* ---------------- 加载遮罩 ---------------- */
+#loading-mask {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    z-index: 20;
+}
+
+#loading-text {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.spinner {
+    width: 34px;
+    height: 34px;
+    border: 3px solid #e3e8ef;
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 小屏适配：面板收窄 */
+@media (max-width: 1100px) {
+    #sidebar { width: 320px; }
+    #map-wrap { left: 320px; }
+}

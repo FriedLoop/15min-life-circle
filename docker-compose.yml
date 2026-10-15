@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    container_name: 15min-life-circle
+    ports:
+      - "8000:8000"
+    # AK 等敏感配置从 backend/.env 读取，不写入镜像
+    env_file:
+      - backend/.env
+    restart: unless-stopped

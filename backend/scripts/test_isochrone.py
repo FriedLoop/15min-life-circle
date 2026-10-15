@@ -54,7 +54,6 @@ async def run(lng: float, lat: float, step_m: int | None = None) -> None:
     print(f"网格点总数    ：{result.total_points}")
     print(f"可达点数      ：{result.reachable_points}")
     print(f"算路失败点数  ：{result.failed_points}")
-    print(f"凸包边界点数  ：{len(result.polygon)}")
     print(f"降级模式      ：{'是（直线估算）' if result.degraded else '否（真实路网）'}")
     if result.message:
         print(f"说明          ：{result.message}")

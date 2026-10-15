@@ -16,11 +16,16 @@ async def isochrone(data: IsochroneRequest) -> IsochroneResponse:
     而非画一个固定半径的圆——道路并非直线，绕行会显著压缩实际可达范围。
 
     响应字段用途：
-        points  每个网格点的耗时，用于绘制热力图
-        polygon 可达区域的凸包外轮廓，用于描边
+        points   每个网格点的耗时与可达标记。热力图并非由本接口绘制：
+                 /api/report 用 blindspot.points[].accessibility 着色，
+                 本接口不产出该字段
         degraded 为 true 表示算路不可用、结果系直线估算
 
-    注意：单次分析会消耗约「网格点数」条算路配额（默认约 137 条），
+    等时圈的边界不由本接口输出：前端按网格单元逐格描边还原真实外轮廓
+    （凸包会抹平凹陷与缺口，故不采用，也不再返回）。
+
+    注意：单次分析会消耗约「网格点数」条算路配额
+    （step_m 为空时取配置 GRID_STEP_M，默认 150 → 197 点），
     请留意每日 5000 条的上限。
     """
     return await isochrone_service.compute_isochrone(

@@ -3,3 +3,6 @@ uvicorn[standard]>=0.27
 pydantic-settings>=2.1
 httpx>=0.27
 python-dotenv>=1.0
+
+# 测试与代码格式检查
+pytest>=8.0

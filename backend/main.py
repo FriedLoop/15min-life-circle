@@ -4,12 +4,15 @@
     uvicorn main:app --reload --port 8000
 """
 
+from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
-from app.routers import geocode, health, isochrone, poi
+from app.routers import config, geocode, health, isochrone, poi, report
 from app.services.baidu_client import BaiduApiError
 
 app = FastAPI(
@@ -39,6 +42,19 @@ async def baidu_api_error_handler(request: Request, exc: BaiduApiError) -> JSONR
 
 
 app.include_router(health.router)
+app.include_router(config.router)
 app.include_router(poi.router)
 app.include_router(geocode.router)
 app.include_router(isochrone.router)
+app.include_router(report.router)
+
+# 挂载前端页面：由后端同时提供静态文件，实现「单端口部署」。
+# 评审只需访问 http://localhost:8000 即可看到完整应用，不必另起静态服务。
+# 注意：必须放在所有 API 路由注册之后，否则会遮蔽 /api/* 路径。
+_FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+if _FRONTEND_DIR.is_dir():
+    app.mount(
+        "/",
+        StaticFiles(directory=str(_FRONTEND_DIR), html=True),
+        name="frontend",
+    )
