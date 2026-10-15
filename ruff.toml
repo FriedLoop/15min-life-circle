@@ -15,5 +15,6 @@ line-length = 100
 select = ["E4", "E7", "E9", "F", "W", "I", "UP", "B"]
 
 [lint.isort]
-# app 是本项目自身的包，声明为 first-party，避免被当作第三方库参与排序
-known-first-party = ["app"]
+# app 包与 main 入口模块都属于项目自身，声明为 first-party，
+# 使其与 fastapi / httpx 等第三方导入分开成组排序
+known-first-party = ["app", "main"]
