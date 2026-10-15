@@ -1,7 +1,7 @@
 # Ruff 静态检查配置
 #
 # 用途：对应赛题「开源工程规范」中「自动化构建与代码格式化检查」一项，
-#       由 Gitee Go 流水线（.workflow/MasterPipeline.yml）执行：
+#       由 GitHub Actions 流水线（.github/workflows/ci.yml）执行：
 #           ruff check backend/
 #
 # 本地执行：  ruff check backend/          # 检查

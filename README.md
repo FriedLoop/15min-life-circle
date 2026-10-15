@@ -88,7 +88,7 @@ python -m pip install pytest
 python -m pytest tests/ -v
 ```
 
-覆盖内容：地理计算、进程内缓存、设施分类、可达性得分、报告聚合链路。
+覆盖内容：地理计算、进程内缓存、设施分类、可达性得分、等时圈降级路径、报告聚合链路。
 
 外部地图接口全部使用 mock，**运行测试不消耗任何 API 配额**。
 其中 `tests/test_report.py` 会完整跑一遍报告生成链路，
@@ -104,11 +104,14 @@ python -m pytest tests/ -v
 |---|---|---|
 | `BAIDU_SERVER_AK` | ✅ | 百度地图**服务端** AK，用于地点检索、批量算路、地理编码 |
 | `BAIDU_BROWSER_AK` | ✅ | 百度地图**浏览器端** AK，前端加载地图用。**必须在控制台配置 Referer 白名单** |
+| `BAIDU_API_BASE` | | 百度 Web 服务 API 基址，默认 `https://api.map.baidu.com`，一般无需修改 |
 | `HTTP_MAX_CONCURRENCY` | | 并发上限，默认 3（个人开发者配额上限，调高会被限流） |
 | `HTTP_TIMEOUT` | | 单次请求超时（秒），默认 10 |
 | `HTTP_RETRIES` | | 网络错误重试次数，默认 2 |
 | `WALK_MINUTES` | | 生活圈时间阈值（分钟），默认 15 |
+| `WALK_SPEED_MPS` | | 步行速度（m/s），默认 1.2。仅在批量算路降级为直线估算时用于折算耗时 |
 | `GRID_STEP_M` | | 网格间隔（米），默认 150。调大省配额，调小边界更精细 |
+| `GRID_COARSE_STEP_M` | | 分级网格优化的粗网格间隔（米），默认 500。阶段5 可选优化，**当前未启用** |
 | `ISOCHRONE_MAX_RADIUS_M` | | 网格覆盖半径（米），默认 1200 |
 | `ROUTEMATRIX_BATCH_SIZE` | | 单次批量算路携带的终点数，默认 50 |
 | `BLINDSPOT_DISTANCE_M` | | 盲区判定阈值（米），默认 1000 |
@@ -241,7 +244,8 @@ score = 100 × Σ(权重ᵢ × 覆盖率ᵢ) / Σ(权重ᵢ)
 │   │   │               poi isochrone blindspot report
 │   │   ├── routers/    health config poi geocode isochrone report
 │   │   └── utils/      geo.py(距离/网格/坐标量化) cache.py(TTL+LRU缓存)
-│   ├── scripts/        check_quota test_isochrone test_report resolve_location
+│   ├── scripts/        delivery_check(交付自检) check_quota test_isochrone
+│   │                   test_report resolve_location
 │   ├── tests/          pytest 用例（外部接口全部 mock，不消耗配额）
 │   ├── main.py         应用入口
 │   └── requirements.txt
@@ -249,7 +253,7 @@ score = 100 × Σ(权重ᵢ × 覆盖率ᵢ) / Σ(权重ᵢ)
 │   ├── index.html
 │   ├── css/style.css
 │   └── js/             config api map layers charts main
-├── docs/               技术方案.md / 测试报告.md
+├── docs/               技术方案.md / 测试报告.md / 手动测试清单.md
 ├── .github/workflows/  GitHub Actions 流水线（ci.yml）
 ├── ruff.toml           静态检查规则
 ├── Dockerfile
@@ -295,15 +299,14 @@ CI 由 **GitHub Actions** 承载，配置见 `.github/workflows/ci.yml`。
 1. `pip install -r backend/requirements.txt` 安装依赖
 2. `ruff check backend/` 静态检查与格式检查
 3. `python -m pytest backend/tests/ -v` 运行单元测试（外部接口全部 mock，**不消耗 API 配额**）
+4. `python backend/scripts/delivery_check.py --no-lint --no-test` 交付要求自检
+   （交付物、密钥安全、文档一致性、API 契约、评分维度逐条证据）
 
 另有一个独立的 `docker` job，用于自动验证「评审可用 Docker 一键跑通」这一交付要求：
 
 - `docker build` 构建镜像
 - 启动容器，断言 `GET /` 返回前端页面、`GET /api/health` 返回 `status: ok`
 - 失败时自动输出容器日志
-
-> **Gitee Go 启用方式**：Gitee 仓库 → DevOps → Gitee Go → 开通并关联本仓库；
-> 自动触发条件在流水线的「高级设置 → 触发事件」中配置。
 
 ### 本地等价的检查（与 CI 完全一致）
 
@@ -317,6 +320,61 @@ ruff check backend/ --fix    # 自动修复
 ```
 
 规则集定义在 `ruff.toml`（pycodestyle + pyflakes + isort + pyupgrade + bugbear）。
+
+### 交付要求自检（一条命令）
+
+提交或评审前，用一条命令确认全部交付要求是否满足：
+
+```powershell
+python backend/scripts/delivery_check.py
+```
+
+检查项：
+
+| # | 检查内容 | 判定方式 |
+|---|---|---|
+| 1 | 交付物完整性 | 文档、部署脚本、CI、依赖清单等必须文件是否存在 |
+| 2 | 前端资源完整性 | `index.html` 引用的本地 css/js 是否都存在 |
+| 3 | 密钥安全 | `.env` 是否被忽略且未被追踪、示例文件中是否只有占位符、镜像是否排除密钥 |
+| 4 | 环境变量文档一致性 | 解析 `Settings` 字段，比对 `.env.example` 与 README 是否都已说明 |
+| 5 | API 契约一致性 | 代码注册的 `/api/*` 路由与 README 接口表双向比对 |
+| 6 | 静态检查 | `ruff check backend/` |
+| 7 | 单元测试 | `python -m pytest backend/tests/ -q` |
+| 8 | **交付要求与评分维度逐条核对** | 对照赛题《交付要求》与《评审维度》，逐条在文档 / 代码中查找实际证据 |
+| 9 | 文档一致性 | 不引用已删除的流水线配置（避免文档自相矛盾） |
+| 10 | Docker 一键部署 | 可选，`--docker` 构建镜像并断言 `/api/health`、`/` 可用 |
+
+第 8 项把评分标准逐条落到可验证的证据上，共 16 条：
+
+| 评分维度（权重） | 核对条目 | 证据位置 |
+|---|---|---|
+| 交付要求 | 开源许可证 | `LICENSE`（MIT） |
+| 交付要求 | 一键式部署脚本 | `start.sh` / `start.ps1` / `Dockerfile` / `docker-compose.yml` / `.env.example` |
+| 交付要求 | 预置示例数据 | `core/samples.py` + `/api/config` 下发样例点位 |
+| 交付要求 | 技术设计文档 | `docs/技术方案.md`（API 策略 / 等时圈 / POI 清洗 / 盲区算法） |
+| 交付要求 | 真实社区对比测试报告 | `docs/测试报告.md`（松山湖 vs 莞城） |
+| 功能正确性 40% | 地图基础能力 | `/geocoding/v3`、`/place/v2/search`、`/routematrix/v2/walking` |
+| 功能正确性 40% | 等时圈热力图 | `services/isochrone.py` + `js/layers.js` 的 `drawAccessibility` / `drawBoundary` |
+| 功能正确性 40% | 盲区识别 | `BLINDSPOT_CATEGORIES`（菜市场 / 药店 / 小学）+ `BLINDSPOT_DISTANCE_M=1000` |
+| API 深度调用 30% | 批量距离矩阵 + 并发 | `routematrix.py` 分批 + `baidu_client.py` 的 `Semaphore` |
+| API 深度调用 30% | 容错与降级 | `degraded` 标记、`return_exceptions=True`、`BaiduApiError` |
+| API 深度调用 30% | 空间插值 | `generate_square_grid` + `DETOUR_FACTOR` 直线初筛 |
+| 产品交互 15% | 可视化 | `layers.js` 热力图 + `charts.js` 柱状图 / 雷达图 |
+| 产品交互 15% | 自定义中心点 | `map.js` 的 `setCenter` / `onSelect` + 样例点选择 |
+| 开源工程规范 15% | 代码规范 | 分层目录 + `ruff.toml` |
+| 开源工程规范 15% | 文档与部署 | README 环境变量 / 快速开始 + `.env.example` 占位符 |
+| 开源工程规范 15% | CI/CD | `.github/workflows/ci.yml`（ruff + pytest + docker job） |
+
+退出码 `0` 表示通过；存在 `[FAIL]` 时返回 `1`。全部通过即代表交付要求已满足。
+
+> 自动化脚本无法覆盖「地图渲染是否真的不规则」「降级注入后表现如何」等需要人眼与真实接口确认的部分，
+> 这部分请按 [`docs/手动测试清单.md`](docs/手动测试清单.md) 逐项走查（9 组 64 项）。
+
+```powershell
+python backend/scripts/delivery_check.py --docker   # 额外验证 Docker 一键部署
+python backend/scripts/delivery_check.py --strict   # 把 [WARN] 也视为失败
+python backend/scripts/delivery_check.py -v         # 显示全部通过项的明细
+```
 
 ---
 
