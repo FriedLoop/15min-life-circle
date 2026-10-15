@@ -1,18 +1,21 @@
-version: '1.0'
-name: test-gitee-go
+version: "1.0"
+name: 云构建额度测试
 displayName: 云构建额度测试
-
 stages:
-  - stage:
-      name: test-stage
-      displayName: 测试阶段
-      strategy: naturally
-      trigger: auto
-      steps:
-        - step: shell@agent
-          name: shell-task
-          displayName: 执行Shell测试
-          hostGroupID: gitee-go
-          script: |
-            echo "Gitee Go 官方云代理，消耗免费构建分钟"
-            uname -a
+- name: 测试阶段
+  displayName: 测试阶段
+  strategy: naturally
+  trigger: auto
+  steps:
+  - step: shell@agent
+    name: shell-task
+    displayName: 执行Shell测试
+    hostGroupID: gitee-go
+    script: |
+      echo "Gitee Go 官方云代理，消耗免费构建分钟"
+      uname -a
+triggers:
+  trigger: manual
+notify: []
+strategy:
+  blocking: true
