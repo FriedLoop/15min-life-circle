@@ -156,15 +156,25 @@
     function renderReport(report) {
         $('report-panel').hidden = false;
 
+        // 降级结果必须显著提示：批量算路不可用时后端退化为「直线距离估算」，
+        // 精度明显低于真实路网。若与正常结果长得一样，用户会把它当成真实路网结论。
+        const iso = report.isochrone || {};
+        const degradedNote = iso.degraded
+            ? `<br><span class="warn-text">⚠️ ${iso.message || '批量算路不可用'}；` +
+              `本次等时圈为直线距离估算（${iso.step_m} m 网格、覆盖半径 ${iso.radius_m} m），` +
+              `精度低于真实路网，仅供参考</span>`
+            : '';
+
         // 有类别检索失败时必须显著提示：其覆盖率不可信，
         // 否则用户会把「请求失败」当成「这里真的没有此类设施」
         const failed = (report.blindspot && report.blindspot.failed_categories) || [];
+        const failedNote = failed.length
+            ? `<br><span class="warn-text">⚠️ ${failed.join('、')} 检索失败（可能触及限流），` +
+              `这部分覆盖率不可信，请稍后重试</span>`
+            : '';
+
         $('report-address').innerHTML =
-            (report.address || '') +
-            (failed.length
-                ? `<br><span class="warn-text">⚠️ ${failed.join('、')} 检索失败（可能触及限流），` +
-                  `这部分覆盖率不可信，请稍后重试</span>`
-                : '');
+            (report.address || '') + degradedNote + failedNote;
 
         // 标注网格单元的实际尺寸：否则用户无法把色块换算成真实距离
         const gridStep = report.isochrone.step_m;

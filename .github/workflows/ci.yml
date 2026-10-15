@@ -38,6 +38,12 @@ jobs:
         run: |
           python -c "import sys; sys.path.insert(0, 'backend'); from main import app; print('FastAPI app 导入正常')"
 
+      # 交付要求自检：核对交付物、密钥安全、环境变量文档一致性、API 契约，
+      # 以及赛题《交付要求》《评审维度》的逐条证据。
+      # lint 与测试在上方已单独执行，故此处跳过以免重复。
+      - name: 交付要求自检
+        run: python backend/scripts/delivery_check.py --no-lint --no-test
+
   docker:
     name: Docker 一键部署验证
     runs-on: ubuntu-latest
