@@ -1,20 +1,18 @@
 version: '1.0'
-name: test-cloud
+name: test-gitee-go
 displayName: 云构建额度测试
 
 stages:
   - stage:
       name: test-stage
       displayName: 测试阶段
-      jobs:
-        - job:
-            name: shell-job
-            displayName: 执行shell测试
-            steps:
-              - step: shell@agent
-                name: demo-shell
-                displayName: 打印信息
-                hostGroupID: gitee-go
-                script: |
-                  echo "Gitee Go 云构建测试，会消耗仓库免费核分"
-                  uname -a
+      strategy: naturally
+      trigger: auto
+      steps:
+        - step: shell@agent
+          name: shell-task
+          displayName: 执行Shell测试
+          hostGroupID: gitee-go
+          script: |
+            echo "Gitee Go 官方云代理，消耗免费构建分钟"
+            uname -a
