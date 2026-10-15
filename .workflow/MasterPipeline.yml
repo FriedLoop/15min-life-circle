@@ -1,6 +1,7 @@
 version: "1.0"
 name: 代码检查与测试
 displayName: 代码检查与测试
+image: ubuntu:22.04
 stages:
 - name: 代码检查与测试
   displayName: 代码检查与测试

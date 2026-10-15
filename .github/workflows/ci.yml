@@ -1,6 +1,5 @@
 name: CI
 
-# 触发：推送到 master / dev、对这两个分支的 PR、以及手动触发
 on:
   push:
     branches: [master, dev]
@@ -36,4 +35,49 @@ jobs:
         run: python -m pytest backend/tests/ -v
 
       - name: 应用可导入性冒烟检查
-        run: python -c "import sys; sys.path.insert(0, 'backend'); from main import app; print('FastAPI app 导入正常')"
+        run: |
+          python -c "import sys; sys.path.insert(0, 'backend'); from main import app; print('FastAPI app 导入正常')"
+
+  docker:
+    name: Docker 一键部署验证
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 构建镜像
+        run: docker build -t 15min-life-circle:ci .
+
+      - name: 启动容器并验证服务与前端可访问
+        run: |
+          docker run -d --name app -p 8000:8000 15min-life-circle:ci
+
+          # 等待服务就绪，最多 60 秒
+          ready=0
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8000/api/health > /dev/null 2>&1; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+
+          if [ "$ready" != "1" ]; then
+            echo "::error::服务在 60 秒内未就绪"
+            docker logs app
+            exit 1
+          fi
+
+          echo "--- /api/health ---"
+          curl -fsS http://localhost:8000/api/health
+          curl -fsS http://localhost:8000/api/health | grep -q '"status":"ok"'
+
+          echo "--- 前端页面 ---"
+          curl -fsS http://localhost:8000/index.html | grep -q '<html'
+
+          echo "Docker 一键部署验证通过：评审按 README 启动后可直接访问服务与前端"
+
+      - name: 失败时输出容器日志
+        if: failure()
+        run: docker logs app || true
