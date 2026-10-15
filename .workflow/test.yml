@@ -1,15 +1,18 @@
-pipeline:
-  name: test-pipeline
-  displayName: 测试云构建
-  stages:
-    - stage:
-        name: test-stage
-        displayName: 测试阶段
-        jobs:
-          - job:
-              name: test-job
-              displayName: 打印测试
-              image: ubuntu:22.04
-              script:
-                - echo "Gitee Go云构建测试，会消耗仓库核分"
-                - uname -a
+version: '1.0'
+name: test-cloud-runner
+displayName: 测试云构建（官方runner）
+
+stages:
+  - stage:
+      name: test-stage
+      displayName: 测试阶段
+      strategy: naturally
+      trigger: auto
+      jobs:
+        - job:
+            name: demo-job
+            displayName: 打印信息任务
+            image: ubuntu:22.04
+            script:
+              - echo "Gitee Go 官方云构建测试"
+              - uname -a
