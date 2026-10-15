@@ -1,5 +1,7 @@
 # 15 分钟生活圈 · 智能体检助手
 
+[![CI](https://github.com/FriedLoop/15min-life-circle/actions/workflows/ci.yml/badge.svg)](https://github.com/FriedLoop/15min-life-circle/actions/workflows/ci.yml)
+
 基于百度地图开放能力，输入任意中心点，自动计算**基于真实路网的 15 分钟步行等时圈**，
 统计圈内民生设施覆盖情况，识别设施匮乏的「服务盲区」，并输出可视化体检报告。
 
@@ -248,6 +250,7 @@ score = 100 × Σ(权重ᵢ × 覆盖率ᵢ) / Σ(权重ᵢ)
 │   ├── css/style.css
 │   └── js/             config api map layers charts main
 ├── docs/               技术方案.md / 测试报告.md
+├── .github/workflows/  GitHub Actions 流水线（ci.yml）
 ├── .workflow/          Gitee Go 流水线（MasterPipeline.yml）
 ├── ruff.toml           静态检查规则
 ├── Dockerfile
@@ -284,17 +287,27 @@ score = 100 × Σ(权重ᵢ × 覆盖率ᵢ) / Σ(权重ᵢ)
 
 ## 十一、CI/CD 与代码检查
 
-### 自动化流水线（Gitee Go）
+仓库提供**两套等价的流水线配置**，任一平台均可独立完成自动化构建与代码格式化检查：
 
-仓库内置 Gitee Go 流水线配置 `.workflow/MasterPipeline.yml`，代码推送后自动执行：
+| 平台 | 配置文件 | 状态 |
+|---|---|---|
+| **GitHub Actions** | `.github/workflows/ci.yml` | ✅ 已启用（公开仓库免费不限时长） |
+| Gitee Go | `.workflow/MasterPipeline.yml` | 配置就绪；受免费构建时长余额限制 |
+
+推送到 `master` / `dev` 后自动执行：
 
 1. `pip install -r backend/requirements.txt` 安装依赖
-2. `python -m pytest backend/tests/ -v` 运行单元测试（外部接口全部 mock，**不消耗 API 配额**）
-3. `ruff check backend/` 静态检查与格式检查
+2. `ruff check backend/` 静态检查与格式检查
+3. `python -m pytest backend/tests/ -v` 运行单元测试（外部接口全部 mock，**不消耗 API 配额**）
 
-> **启用方式**：Gitee 仓库 → DevOps → Gitee Go → 开通并关联本仓库。
-> 自动触发条件（分支、事件类型）在流水线的「高级设置 → 触发事件」中配置。
-> 注：Gitee Go 免费构建时长有限，余额不足时流水线无法触发。
+GitHub Actions 另有一个独立的 `docker` job，用于自动验证「评审可用 Docker 一键跑通」这一交付要求：
+
+- `docker build` 构建镜像
+- 启动容器，断言 `GET /` 返回前端页面、`GET /api/health` 返回 `status: ok`
+- 失败时自动输出容器日志
+
+> **Gitee Go 启用方式**：Gitee 仓库 → DevOps → Gitee Go → 开通并关联本仓库；
+> 自动触发条件在流水线的「高级设置 → 触发事件」中配置。
 
 ### 本地等价的检查（与 CI 完全一致）
 
