@@ -14,7 +14,13 @@ WORKDIR /app
 
 # 先只复制依赖清单，充分利用 Docker 构建缓存
 COPY backend/requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r /tmp/requirements.txt
+
+# 优先走清华镜像（国内快），失败则回退官方源。
+# 必须有这个回退：实测部分网络下清华镜像会直接返回 403 Forbidden
+# （DNS 正常、官方源可达），此时若只写死一个源，整个构建就失败了——
+# 表现为「一键部署」在评审机器上不可用。2026-10-16 实测复现并修复。
+RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r /tmp/requirements.txt \
+    || pip install --no-cache-dir -r /tmp/requirements.txt
 
 # 再复制源码
 COPY backend/ /app/backend/
