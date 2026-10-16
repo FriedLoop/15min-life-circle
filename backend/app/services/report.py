@@ -89,6 +89,7 @@ async def compute_report(
     radius_m: int | None = None,
     categories: list[str] | None = None,
     with_address: bool = True,
+    coarse: bool = False,
 ) -> ReportResponse:
     """生成 15 分钟生活圈体检报告。
 
@@ -99,12 +100,14 @@ async def compute_report(
         radius_m: 网格覆盖半径（米）
         categories: 关注的设施类别；为空表示全部
         with_address: 是否调用逆地理编码获取地址（消耗 1 次配额）
+        coarse: 是否启用「分级网格 + IDW 插值」的算路配额优化
     """
     minutes = walk_minutes or settings.WALK_MINUTES
     cats = categories or list(constants.FACILITY_CATEGORIES.keys())
 
     q_lng, q_lat = quantize_coord(lng, lat, settings.CACHE_COORD_PRECISION_M)
-    # 网格参数须纳入缓存键，否则换精度后会命中旧精度的结果
+    # 网格参数须纳入缓存键，否则换精度后会命中旧精度的结果；
+    # 网格策略同样要计入：两种策略的内部耗时不同，不能互相命中
     cache_key = (
         "report",
         q_lng,
@@ -114,6 +117,7 @@ async def compute_report(
         step_m,
         radius_m,
         with_address,
+        bool(coarse),
     )
     if settings.CACHE_ENABLED:
         hit = analysis_cache.get(cache_key)
@@ -122,7 +126,12 @@ async def compute_report(
 
     # 1. 等时圈
     isochrone = await compute_isochrone(
-        lng, lat, walk_minutes=minutes, step_m=step_m, radius_m=radius_m
+        lng,
+        lat,
+        walk_minutes=minutes,
+        step_m=step_m,
+        radius_m=radius_m,
+        coarse=coarse,
     )
 
     # 2. 盲区识别（复用等时圈，避免重复算路）

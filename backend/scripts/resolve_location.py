@@ -63,7 +63,7 @@ async def resolve(address: str, city: str = "东莞市") -> None:
 
     # 3. 交叉对比
     if not results:
-        print("\n⚠️ 地点检索无结果，请换更具体的关键词重试")
+        print("\n[WARN] 地点检索无结果，请换更具体的关键词重试")
         return
 
     top = results[0]
@@ -75,10 +75,10 @@ async def resolve(address: str, city: str = "东莞市") -> None:
     print(f"两条路径相距：{gap:.0f} 米")
 
     if gap > WARN_DISTANCE_M:
-        print(f"⚠️ 差异超过 {WARN_DISTANCE_M}m，地理编码可能不准")
+        print(f"[WARN] 差异超过 {WARN_DISTANCE_M}m，地理编码可能不准")
         print(f"   建议改用【地点检索】坐标：{poi_lng:.6f}, {poi_lat:.6f}")
     else:
-        print("✅ 两者接近，坐标可信")
+        print("[OK] 两者接近，坐标可信")
         print(f"   推荐坐标：{poi_lng:.6f}, {poi_lat:.6f}")
     print("-" * 64)
 

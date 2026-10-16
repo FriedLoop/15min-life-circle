@@ -12,6 +12,7 @@
         <header id="topbar">
             <h1>15分钟生活圈 · 智能体检助手</h1>
             <div id="status-bar">
+                <button id="help-btn" class="btn btn-small" aria-haspopup="dialog">? 口径说明</button>
                 <span id="backend-status" class="badge badge-warn">连接中…</span>
                 <span id="quota-hint" class="hint">每次分析会消耗地图 API 配额，相同位置会自动复用缓存</span>
             </div>
@@ -19,8 +20,8 @@
 
         <!-- 左侧控制面板 -->
         <aside id="sidebar">
-            <section class="panel">
-                <h2>1. 选择中心点</h2>
+            <details class="panel" id="panel-center" open>
+                <summary><h2>1. 选择中心点</h2></summary>
                 <div class="field">
                     <label>示例点位</label>
                     <select id="sample-select">
@@ -35,15 +36,29 @@
                     </div>
                 </div>
                 <div class="field">
-                    <label>或直接在地图上点击</label>
-                    <div class="coord-display">
-                        当前：<span id="coord-text">未选择</span>
+                    <label>或手动输入坐标（可声明坐标系）</label>
+                    <div class="row">
+                        <input type="text" id="manual-coord" placeholder="经度, 纬度  如 113.881641, 22.909011">
                     </div>
+                    <div class="row" style="margin-top:6px">
+                        <select id="coord-type">
+                            <option value="bd09" selected>BD09 — 百度经纬度</option>
+                            <option value="gcj02">GCJ02 — 高德 / 腾讯</option>
+                            <option value="wgs84">WGS84 — GPS / GeoJSON</option>
+                        </select>
+                        <button id="coord-btn" class="btn">转换并定位</button>
+                    </div>
+                    <div class="coord-display" id="convert-result" hidden></div>
                 </div>
-            </section>
+                <div class="field" style="margin-bottom:0">
+                    <label>或直接在地图上点击</label>
+                    <div class="coord-display">当前中心点（BD09）：<span id="coord-text">未选择</span></div>
+                    <div class="coord-extra" id="coord-source"></div>
+                </div>
+            </details>
 
-            <section class="panel">
-                <h2>2. 分析参数</h2>
+            <details class="panel" id="panel-params" open>
+                <summary><h2>2. 分析参数</h2></summary>
                 <div class="field">
                     <label>步行时间：<b id="walk-minutes-value">15</b> 分钟</label>
                     <input type="range" id="walk-minutes" min="5" max="30" step="5" value="15">
@@ -57,11 +72,21 @@
                         <option value="100">100 m — 精细，配额消耗高</option>
                         <option value="75">75 m — 最精细，配额消耗很高</option>
                     </select>
-                    <div class="hint" id="grid-hint">
-                        间隔越小，等时圈边界越精细、可达网格点越多，但算路调用量按平方增长
-                    </div>
                 </div>
                 <div class="field">
+                    <label>网格策略（算路配额优化）</label>
+                    <select id="grid-strategy">
+                        <option value="single" selected>单级精细网格 — 每格都算路，最准确（推荐）</option>
+                        <option value="coarse">分级网格 + IDW 插值 — 省约 36% 算路，面积误差约 8%</option>
+                    </select>
+                    <!-- 只在选中「有损近似」时才出现：默认状态下不占位置，
+                         但用户一旦切过去，代价必须当场可见 -->
+                    <div class="inline-warn" id="strategy-warn" hidden>
+                        有损近似：路网被水域 / 围墙切断处会误判（实测面积误差约 8%），
+                        需要精确边界请切回单级精细网格
+                    </div>
+                </div>
+                <div class="field" style="margin-bottom:0">
                     <label>关注设施类别</label>
                     <div id="category-list" class="checkbox-group">
                         <span class="hint">从后端加载中…</span>
@@ -70,12 +95,24 @@
                         <button id="cat-all" class="btn btn-small">全选</button>
                         <button id="cat-key" class="btn btn-small">仅关键三类</button>
                     </div>
+                    <!-- 关键三类全被取消时不静默：盲区判定会整体消失，
+                         健康度也换一套口径，必须当场说明，否则用户会把
+                         「未判定」误读成「没有盲区」 -->
+                    <div class="inline-warn" id="categories-warn" hidden>
+                        未选择关键三类（菜市场 / 药店 / 小学）：本次<b>不做盲区判定</b>，
+                        报告只统计所选类别的覆盖率，健康度也只按所选类别计算
+                    </div>
                 </div>
-                <button id="analyze-btn" class="btn btn-primary btn-block">开始体检</button>
-            </section>
+            </details>
 
-            <section class="panel" id="report-panel" hidden>
-                <h2>3. 体检报告</h2>
+            <!-- 主操作放在可折叠面板之外：「开始体检」在分析结束后还要能点，
+                 若留在 §2 内部，面板自动收起时按钮会一起消失 -->
+            <div id="primary-action">
+                <button id="analyze-btn" class="btn btn-primary btn-block">开始体检</button>
+            </div>
+
+            <details class="panel" id="report-panel" hidden open>
+                <summary><h2>3. 体检报告</h2></summary>
                 <div id="report-address" class="report-address"></div>
 
                 <div class="score-box">
@@ -84,38 +121,81 @@
                     <div class="score-bar"><div id="health-bar"></div></div>
                 </div>
 
+                <div id="cache-badge" class="cache-badge" hidden></div>
                 <div id="summary-grid" class="summary-grid"></div>
                 <div id="blindspot-note" class="coverage-note"></div>
 
                 <div class="chart-block">
                     <h3>设施覆盖率</h3>
-                    <div class="coverage-note">
-                        覆盖率 = 可达点 <b>1km 内</b>能触及该类设施的比例；
-                        圈内设施 = <b>15 分钟等时圈内</b>的数量。
-                        两者口径不同，因此会出现「圈内 0 个但覆盖率 &gt; 0」的情况。
-                    </div>
                     <div id="chart-coverage" class="chart"></div>
                 </div>
                 <div class="chart-block">
                     <h3>各类别得分</h3>
                     <div id="chart-radar" class="chart"></div>
                 </div>
-            </section>
+
+                <div class="chart-block">
+                    <h3>逐类盲区率</h3>
+                    <div id="category-table" class="cat-table"></div>
+                </div>
+            </details>
+
+            <details class="panel" id="poi-panel" hidden open>
+                <summary><h2>4. 设施检索（原始 POI）</h2></summary>
+                <div class="field">
+                    <label>检索半径</label>
+                    <div class="row">
+                        <select id="poi-radius">
+                            <option value="500">500 m</option>
+                            <option value="1000" selected>1000 m</option>
+                            <option value="2000">2000 m</option>
+                            <option value="3000">3000 m</option>
+                        </select>
+                        <button id="poi-btn" class="btn">检索</button>
+                    </div>
+                </div>
+                <div id="poi-result"></div>
+            </details>
         </aside>
 
         <!-- 地图主区域 -->
         <main id="map-wrap">
             <div id="map-container"></div>
+
+            <!-- 图层控制：可切换「设施可达性」与「步行耗时」两种着色。
+                 默认隐藏——没有报告时它既无图层可切、也无盲区可标注，
+                 三块内容（图层 / 标注类别 / 已标注数量）全都依赖分析结果，
+                 由 main.js 在热力图绘制完成后显示。 -->
+            <div id="map-controls" hidden>
+                <div class="mc-group">
+                    <div class="mc-title">图层</div>
+                    <div class="mc-btns">
+                        <button class="btn btn-small mc-btn is-active" data-layer="accessibility">设施可达性</button>
+                        <button class="btn btn-small mc-btn" data-layer="duration">步行耗时</button>
+                    </div>
+                </div>
+                <!-- 未选择任何判定类别时整组隐藏：这时没有盲区可标注，
+                     留一个只有「综合」的下拉框只会让人以为标注坏了 -->
+                <div class="mc-group" id="blind-mark-group">
+                    <div class="mc-title">盲区标注类别</div>
+                    <select id="blind-category">
+                        <option value="__any__" selected>综合（任一缺失）</option>
+                    </select>
+                </div>
+                <div class="mc-note" id="layer-note"></div>
+            </div>
+
             <div id="map-legend">
                 <div class="legend-title">图例</div>
 
-                <div class="legend-sub">设施可达性（仅等时圈内）</div>
+                <div class="legend-sub" id="legend-sub">设施可达性（仅等时圈内）</div>
                 <div class="legend-gradient"></div>
-                <div class="legend-scale"><span>便利</span><span>匮乏（盲区）</span></div>
+                <div class="legend-scale" id="legend-scale"><span>便利</span><span>匮乏（盲区）</span></div>
                 <div id="legend-grid" class="legend-grid">网格单元：—</div>
 
                 <div class="legend-sub">标记</div>
                 <div class="legend-item"><i class="boundary-line"></i>等时圈边界</div>
+                <div class="legend-item"><i class="blind-outline"></i>盲区点位标注</div>
                 <div class="legend-item">
                     <svg class="shape-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="16" viewBox="0 0 14 18">
                         <path d="M7 0C3.1 0 0 3.1 0 7c0 4.4 7 11 7 11s7-6.6 7-11c0-3.9-3.1-7-7-7z" fill="#e83828"/>
@@ -133,6 +213,120 @@
             </div>
         </main>
     </div>
+
+    <!-- 口径说明抽屉。
+         原本这些解释平铺在侧栏各字段下方，一屏之内十几行灰字把控件挤没了；
+         集中到抽屉里，侧栏只留顶栏一个入口，控件成为首屏主体。
+         用 hidden 控制显隐（样式表里 [hidden]{display:none!important} 保证生效）。 -->
+    <div id="help-backdrop" hidden></div>
+    <aside id="help-drawer" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
+        <div class="help-head">
+            <h2 id="help-title">口径说明</h2>
+            <button id="help-close" class="btn btn-small">关闭</button>
+        </div>
+        <div class="help-body">
+            <div class="help-item">
+                <h3>① 为什么必须声明坐标系</h3>
+                <p>
+                    WGS84（GPS / GeoJSON）、GCJ02（高德 / 腾讯）、BD09（百度）三者定位同一地点
+                    最多相差 <b>600 米</b>。本项目内部统一用 BD09，所以输入的坐标必须声明来源，
+                    由后端先转换为 BD09 再分析——否则等时圈与盲区结论会整体平移。
+                    前端会实时显示转换结果与偏移量；官方转换接口不可用时由本地算法兜底，
+                    实测与官方 geoconv 差 2~25 米，远小于 150 米网格间隔，不改变任何结论。
+                </p>
+            </div>
+
+            <div class="help-item">
+                <h3>② 网格间隔怎么影响结论</h3>
+                <p>
+                    间隔越小，等时圈边界越精细、可达网格点越多，但算路调用量按平方增长。
+                    实测 200 m 与 150 m 算出的可达面积仅差 <b>1.4%</b>（1.44 vs 1.42 km²），
+                    统计口径已收敛；150 m 主要用于提升热力图细腻度与边界精细度。
+                    150 m 对应 <b>197 个采样点</b>，即单次分析约 197 条算路配额（日配额 5000 条）。
+                </p>
+            </div>
+
+            <div class="help-item">
+                <h3>③ 两种网格策略的取舍</h3>
+                <p><b>单级精细网格（默认）</b>：每个采样点都发真实算路，结果最准确，是基准口径。</p>
+                <p>
+                    <b>分级网格 + IDW 插值</b>：用几何性质判掉大部分采样点的可达性，
+                    只对结果不确定的「灰色地带」做真实算路，其余耗时由反距离加权（IDW）插值补全。
+                </p>
+                <p>
+                    <b>代价是有损近似</b>：剪枝依赖「路网距离 ≤ 1.6 × 直线距离」，
+                    而路网被水域 / 围墙切断时该前提会失效——实测松山湖有 5 个点
+                    直线仅 424~618 m、真实耗时却达 1023~1480 s（等效绕行系数 2.8）会被误判。
+                    实测（150 m 网格）：算路量 197 → <b>125</b>（省 36.5%），
+                    可达面积 1.417 → 1.530 km²（误差 <b>7.94%</b>，IoU 0.93）。
+                </p>
+                <p>结论：配额充足时用单级；确实吃紧时才用分级，并接受约 8% 的面积误差。</p>
+            </div>
+
+            <div class="help-item">
+                <h3>④ 覆盖率与「圈内设施」为何口径不同</h3>
+                <p>
+                    <b>覆盖率</b> = 可达点 1 km 内能触及该类设施的比例；
+                    <b>圈内设施</b> = 15 分钟等时圈内的数量。
+                    两者口径不同，因此会出现「圈内 0 个但覆盖率 &gt; 0」的情况。
+                </p>
+                <p>
+                    覆盖率采用「可及即满分」口径（可及记 1、不可及记 0，按类别权重加权平均），
+                    而不是距离线性衰减：阈值本身就是 1 km，一个 900 m 的设施按定义已经可及，
+                    若按 1 − d/1000 计分它只得 0.1 分，会让覆盖率 100% 的区域整片发红。
+                </p>
+            </div>
+
+            <div class="help-item">
+                <h3>⑤ 盲区率怎么算、加粗代表什么</h3>
+                <p>
+                    <b>盲区率</b> = 可达点中「该类设施 1 km 内不可及」的比例。
+                    加粗并带 ★ 的是赛题点名的判定类别（菜市场 / 药店 / 小学），
+                    其中<b>缺失任一</b>即把该点记为服务盲区；其余类别只参与覆盖率统计，
+                    不参与盲区判定。
+                </p>
+                <p>
+                    为什么不全用 10 类判定：养老这类普遍稀缺的设施会让几乎所有点都命中缺失，
+                    盲区率被推向 100%，失去区分度。
+                </p>
+            </div>
+
+            <div class="help-item">
+                <h3>⑥ 设施检索面板用来核对什么</h3>
+                <p>
+                    直接调用 <code>/api/get_poi</code>，按类别分别检索中心点周边的设施，
+                    返回未经等时圈过滤的原始检索结果，用于核对覆盖率统计的底数。
+                </p>
+                <p>
+                    为什么按类别分别检索、而不是一次并集检索：并集检索只返回前 20 条且按相关性排序，
+                    实测莞城 1000 m 内各类设施共 104 个，返回的 20 条里 <b>18 条都是药店</b>，
+                    菜市场与小学被直接挤掉，据此统计会得出「该区域没有小学」这类失真结论。
+                </p>
+            </div>
+
+            <div class="help-item">
+                <h3>⑦ 已知偏差（都偏保守）</h3>
+                <p>
+                    <b>1. 检索条数上限</b>：每类最多取 2 页 40 条，且百度按相关性而非距离排序。
+                    密集区域（莞城、虎门老城区）实测已触顶，半径内仍有设施未被返回，
+                    导致覆盖率虚低、盲区率虚高。
+                </p>
+                <p>
+                    <b>2. 直线初筛的前提</b>：初筛假定「路网 ≤ 1.6 × 直线距离」，
+                    地形被切断处会漏报（即 ③ 里提到的绕行系数 2.8 那批点）。
+                </p>
+                <p>
+                    <b>3. 统一阈值</b>：盲区判定统一取 1 km，与赛题口径一致。
+                    不同设施的实际合理服务半径确有差异，但改用分类别阈值会让健康度分数
+                    的语义变糊，且缺乏权威依据，故保留统一口径。
+                </p>
+                <p>
+                    数据基准另经东莞市政务公开名录（医保局 / 教育局 / 民政局 / 市场监管局）
+                    独立交叉校验：校园类召回率 100%，并据此定位到上述第 1 条缺陷。
+                </p>
+            </div>
+        </div>
+    </aside>
 
     <!-- 图表改为纯 SVG 自绘（js/charts.js），不再引入 ECharts，
          避免 CDN 在离线/内网环境下加载失败导致图表区空白 -->

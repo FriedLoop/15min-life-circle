@@ -145,6 +145,60 @@ def test_compute_report_without_address(monkeypatch):
     assert result.address == ""
 
 
+def _patch_report_deps(monkeypatch, on_isochrone=None) -> None:
+    """把报告依赖的三个外部调用全部替换掉（不触网、不消耗配额）。"""
+
+    async def fake_isochrone(*args, **kwargs):
+        if on_isochrone:
+            on_isochrone(kwargs)
+        return _fake_isochrone()
+
+    async def fake_blindspot(*args, **kwargs):
+        return _fake_blindspot()
+
+    async def fake_search(*args, **kwargs):
+        return _fake_pois(), []
+
+    monkeypatch.setattr(report_service, "compute_isochrone", fake_isochrone)
+    monkeypatch.setattr(report_service, "compute_blindspot", fake_blindspot)
+    monkeypatch.setattr(report_service, "search_all_categories", fake_search)
+
+
+def test_compute_report_forwards_coarse_flag(monkeypatch):
+    """coarse_grid 必须一路透传到等时圈服务，否则前端的策略开关是摆设。"""
+    monkeypatch.setattr(report_service.settings, "CACHE_ENABLED", False)
+    captured: dict = {}
+    _patch_report_deps(monkeypatch, on_isochrone=captured.update)
+
+    asyncio.run(report_service.compute_report(LNG, LAT, coarse=True))
+    assert captured.get("coarse") is True
+
+    captured.clear()
+    asyncio.run(report_service.compute_report(LNG, LAT))
+    assert captured.get("coarse") is False
+
+
+def test_report_cache_key_distinguishes_grid_strategy(monkeypatch):
+    """两种网格策略的内部耗时不同，不能命中同一份缓存。
+
+    否则先跑一次分级网格、再切回单级网格会直接拿到近似结果，
+    用户以为切回「精确模式」了，实际还是近似值。
+    """
+    from app.utils.cache import analysis_cache
+
+    monkeypatch.setattr(report_service.settings, "CACHE_ENABLED", True)
+    analysis_cache.clear()
+    _patch_report_deps(monkeypatch)
+
+    first = asyncio.run(report_service.compute_report(LNG, LAT))
+    second = asyncio.run(report_service.compute_report(LNG, LAT))
+    third = asyncio.run(report_service.compute_report(LNG, LAT, coarse=True))
+
+    assert first.cached is False
+    assert second.cached is True
+    assert third.cached is False
+
+
 def test_health_score_empty_input():
     assert report_service.compute_health_score({}) == (0.0, {})
 

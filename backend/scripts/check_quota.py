@@ -32,7 +32,10 @@ AK = os.getenv("BAIDU_SERVER_AK", "")
 BASE = "https://api.map.baidu.com"
 TIMEOUT = 10.0
 
-# 合并检索的 10 类设施，与 app/core/constants.py 保持一致
+# 本脚本自己的多关键字并集串，**仅用于连通性探测**：
+# 正式业务已改为按类别分别检索（关键词取自 app/core/constants.py 的
+# FACILITY_CATEGORIES），并集检索只返回前 20 条并按相关性排序，
+# 会把菜市场、小学这类稀疏类别挤掉，不能用于统计。
 QUERY = "$".join(
     [
         "菜市场", "药店", "小学", "幼儿园", "社区卫生服务中心",
@@ -65,7 +68,7 @@ def _get(path: str, params: dict) -> dict:
 def _fail(data: dict) -> None:
     """统一打印失败原因与排查建议。"""
     status = data.get("status")
-    print(f"  ✗ 失败：status={status}  message={data.get('message')}")
+    print(f"  [FAIL] status={status}  message={data.get('message')}")
     hint = ERROR_HINTS.get(status)
     if hint:
         print(f"    → {hint}")
@@ -82,7 +85,7 @@ def check_geocoding(address: str) -> tuple[float, float]:
     result = data["result"]
     loc = result["location"]
     lng, lat = loc["lng"], loc["lat"]
-    print(f"  ✓ 坐标(BD09)：{lng:.6f}, {lat:.6f}")
+    print(f"  [OK] 坐标(BD09)：{lng:.6f}, {lat:.6f}")
     print(f"    可信度 confidence={result.get('confidence')} level={result.get('level')}")
     return lng, lat
 
@@ -106,7 +109,7 @@ def check_poi(lng: float, lat: float) -> None:
         return
 
     results = data.get("results", [])
-    print(f"  ✓ 本页返回 {len(results)} 条，服务端总数 total={data.get('total')}")
+    print(f"  [OK] 本页返回 {len(results)} 条，服务端总数 total={data.get('total')}")
 
     # 按 tag 粗分类，确认并集检索确实覆盖了多个类别
     tags: dict[str, int] = {}
@@ -138,9 +141,9 @@ def check_routematrix(lng: float, lat: float) -> None:
     for i, item in enumerate(data.get("result", []), start=1):
         distance = (item.get("distance") or {}).get("value", 0)
         duration = (item.get("duration") or {}).get("value", 0)
-        print(f"  ✓ 终点{i}：距离 {distance:.0f} 米，步行 {duration:.0f} 秒")
+        print(f"  [OK] 终点{i}：距离 {distance:.0f} 米，步行 {duration:.0f} 秒")
         if duration == 0:
-            print("    ⚠ duration=0 表示该点无法算路，算法中必须剔除这类点")
+            print("    [WARN] duration=0 表示该点无法算路，算法中必须剔除这类点")
 
 
 def main() -> None:
@@ -149,7 +152,7 @@ def main() -> None:
     print("=" * 60)
 
     if not AK:
-        print("\n✗ 未检测到 BAIDU_SERVER_AK")
+        print("\n[FAIL] 未检测到 BAIDU_SERVER_AK")
         print("  请先复制 backend/.env.example 为 backend/.env 并填入 AK")
         sys.exit(1)
 

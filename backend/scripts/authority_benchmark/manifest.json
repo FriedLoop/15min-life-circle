@@ -1,0 +1,47 @@
+{
+  "collected_at": "2026-10-16",
+  "target_towns": [
+    "松山湖",
+    "莞城",
+    "虎门"
+  ],
+  "row_counts": {
+    "dongguan_pharmacy": 232,
+    "dongguan_kindergarten": 31,
+    "dongguan_school": 55,
+    "dongguan_elderly_care": 3,
+    "dongguan_market": 1
+  },
+  "sources": {
+    "pharmacy": {
+      "url": "https://www.dg.gov.cn/ylbzj/ddlsydcx.html",
+      "publisher": "东莞市医疗保障局",
+      "title": "市内定点药店查询",
+      "note": "医保定点零售药店；非定点药店不在此名录"
+    },
+    "kindergarten": {
+      "url": "https://edu.dg.gov.cn/gkmlpt/content/4/4448/post_4448311.html",
+      "publisher": "东莞市教育局",
+      "title": "东莞市公办（集体办）幼儿园基本情况一览表（统计至2025年10月）",
+      "note": "仅公办/集体办幼儿园，不含民办"
+    },
+    "school": {
+      "url": "https://edu.dg.gov.cn/gkmlpt/content/3/3964/post_3964562.html",
+      "publisher": "东莞市教育局",
+      "title": "东莞市“广东省义务教育标准化学校”名单（统计至2023年2月）",
+      "note": "原表无地址字段，仅有镇街；定位需按名称地理编码"
+    },
+    "elderly_care": {
+      "url": "https://mzj.dg.gov.cn/gkmlpt/content/4/4226/post_4226032.html",
+      "publisher": "东莞市民政局",
+      "title": "东莞市在运营养老机构信息表（2024年6月）",
+      "note": ""
+    },
+    "market": {
+      "url": "http://dgamr.dg.gov.cn/zfxxgkml/qt/tzgg/content/post_4459335.html",
+      "publisher": "东莞市市场监督管理局",
+      "title": "关于东莞市五星农贸市场名单的公示（2025-11-14，21家）",
+      "note": "仅五星名单；全市约 451 个农贸市场，星级评定覆盖极小"
+    }
+  }
+}

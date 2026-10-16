@@ -9,6 +9,7 @@ from app.schemas.models import (
     ReverseGeocodeResponse,
 )
 from app.services import geocoding
+from app.services.coordconv import to_bd09_point
 
 router = APIRouter(prefix="/api", tags=["geocode"])
 
@@ -25,5 +26,9 @@ async def geocode(data: GeocodeRequest) -> GeocodeResponse:
 
 @router.post("/reverse_geocode", response_model=ReverseGeocodeResponse)
 async def reverse_geocode(data: ReverseGeocodeRequest) -> ReverseGeocodeResponse:
-    """BD09 坐标 -> 结构化地址，用于报告中标注行政归属。"""
-    return await geocoding.reverse_geocode(lng=data.lng, lat=data.lat)
+    """BD09 坐标 -> 结构化地址，用于报告中标注行政归属。
+
+    coord_type 非 bd09 时会先转换为 BD09，否则会返回相邻地点的地址。
+    """
+    lng, lat = to_bd09_point(data.lng, data.lat, data.coord_type)
+    return await geocoding.reverse_geocode(lng=lng, lat=lat)
