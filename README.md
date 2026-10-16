@@ -50,30 +50,67 @@
 
 ## 三、快速开始
 
-### 方式 A：Docker（推荐，评审最省事）
+> **只需一步**：把两个 AK 通过环境变量传给启动命令即可，**不需要编辑任何文件**。
+> 两个 AK 都必填——服务端 AK 用于检索与算路，浏览器端 AK 用于加载地图，
+> 缺任意一个都会导致功能不完整（缺浏览器端 AK 表现为地图白屏，页面顶部会明确提示）。
+
+### 方式 A：Docker（推荐）
 
 ```bash
-# 1. 配置密钥
-cp backend/.env.example backend/.env
-#    编辑 backend/.env，填入百度地图服务端 AK
+# Linux / macOS / Git Bash —— 一行命令，不碰任何文件
+BAIDU_SERVER_AK=你的服务端AK BAIDU_BROWSER_AK=你的浏览器端AK docker compose up --build
+```
 
-# 2. 启动
+```powershell
+# Windows PowerShell
+$env:BAIDU_SERVER_AK="你的服务端AK"; $env:BAIDU_BROWSER_AK="你的浏览器端AK"; docker compose up --build
+```
+
+打开 **http://localhost:8000** 即可（后端同时托管前端页面，单端口）。
+
+<details>
+<summary>Docker 构建失败？多半是拉不到基础镜像（国内网络）</summary>
+
+直连 Docker Hub 在国内常常超时（表现为 `python:3.11-slim` 拉取失败）。三种绕法任选：
+
+```bash
+# ① 换构建源（不需要改 Docker 全局配置）
+docker compose build --build-arg BASE_IMAGE=docker.1ms.run/library/python:3.11-slim
+docker compose up
+
+# ② 先拉加速源的同名镜像再打回官方标签
+docker pull docker.1ms.run/library/python:3.11-slim
+docker tag docker.1ms.run/library/python:3.11-slim python:3.11-slim
 docker compose up --build
 
-# 3. 打开 http://localhost:8000
+# ③ 给 Docker Desktop 配置镜像加速源（Settings → Docker Engine，加 registry-mirrors）
+#    可用的加速源：https://docker.1ms.run  https://docker.m.daocloud.io  https://hub.rat.dev
 ```
+
+</details>
 
 ### 方式 B：本地运行
 
 ```bash
-# Git Bash / Linux / macOS
-./start.sh
+# Git Bash / Linux / macOS —— 一行命令，不碰任何文件
+BAIDU_SERVER_AK=你的服务端AK BAIDU_BROWSER_AK=你的浏览器端AK ./start.sh
 
-# Windows PowerShell
-.\start.ps1
+# 也支持参数形式
+./start.sh --server-ak 你的服务端AK --browser-ak 你的浏览器端AK
 ```
 
-脚本会自动完成：创建 `.env` → 创建虚拟环境 → 安装依赖 → 启动服务。
+```powershell
+# Windows PowerShell
+.\start.ps1 -ServerAk 你的服务端AK -BrowserAk 你的浏览器端AK
+```
+
+脚本依次完成：创建虚拟环境 → 安装依赖 → 启动服务。
+依赖默认走清华镜像，失败时自动回退官方源。
+
+**未提供 AK 时脚本不会中断**：服务照常启动，页面顶部显示「后端缺 AK 配置」。
+这是刻意的——「服务起不来」和「缺一行配置」是两类完全不同的故障，
+用同一种方式表达会让人误以为部署失败。
+
 启动后访问 **http://localhost:8000**（后端同时托管前端页面，单端口即可）。
 
 手动启动：
@@ -103,12 +140,18 @@ python -m pytest tests/ -v
 
 ## 四、环境变量
 
-配置文件：`backend/.env`（从 `.env.example` 复制而来，已被 `.gitignore` 排除）
+配置来源有两条，**进程环境变量优先于配置文件**，因此两者不会互相干扰：
+
+1. 启动命令前直接传（推荐，见第三章）：`BAIDU_SERVER_AK=xxx docker compose up --build`
+2. 配置文件：`backend/.env`（从 `.env.example` 复制而来，已被 `.gitignore` 排除）
+
+> **密钥脱敏**：仓库内所有文档与示例文件只出现变量名和占位符，**不含任何真实 AK**；
+> 镜像同样不含密钥（`.dockerignore` 已排除），配置一律在运行时注入。
 
 | 变量 | 必填 | 说明 |
 |---|---|---|
 | `BAIDU_SERVER_AK` | ✅ | 百度地图**服务端** AK，用于地点检索、批量算路、地理编码 |
-| `BAIDU_BROWSER_AK` | ✅ | 百度地图**浏览器端** AK，前端加载地图用。**必须在控制台配置 Referer 白名单** |
+| `BAIDU_BROWSER_AK` | ✅ | 百度地图**浏览器端** AK，前端加载地图用。**必须在控制台配置 Referer 白名单**，否则地图白屏 |
 | `BAIDU_API_BASE` | | 百度 Web 服务 API 基址，默认 `https://api.map.baidu.com`，一般无需修改 |
 | `HTTP_MAX_CONCURRENCY` | | 并发上限，默认 3（个人开发者配额上限，调高会被限流） |
 | `HTTP_TIMEOUT` | | 单次请求超时（秒），默认 10 |
@@ -130,6 +173,22 @@ python -m pytest tests/ -v
 | `CACHE_TTL_SECONDS` / `CACHE_MAX_SIZE` | | 缓存过期（秒，默认 3600）/ 容量（默认 64） |
 | `CACHE_COORD_PRECISION_M` | | 缓存坐标量化粒度（米），默认 50 |
 | `CORS_ORIGINS` | | 允许的跨域来源，默认 `*` |
+
+### 部署自检（30 秒）
+
+```bash
+curl http://localhost:8000/api/health
+# 期望：{"status":"ok","ak_configured":true,"browser_ak_configured":true,"walk_minutes":15}
+```
+
+| 返回值 | 含义与处理 |
+|---|---|
+| `ak_configured: false` | 服务端 AK 未配置，**或仍是 `.env.example` 里的模板占位符**。页面顶部会显示「后端缺 AK 配置」 |
+| `browser_ak_configured: false` | 浏览器端 AK 未配置 → 地图会白屏。页面顶部会显示「地图 AK 未配置（地图将白屏）」 |
+| 两者均为 `true` | 打开 http://localhost:8000 即可正常使用 |
+
+> 占位符也算「未配置」：`.env.example` 里的 `your_baidu_server_ak_here` 非空，
+> 若只做非空判断，界面会显示「已就绪」而每个请求都失败——这类"说好了却报错"的问题最难自查。
 
 ### AK 申请要点
 

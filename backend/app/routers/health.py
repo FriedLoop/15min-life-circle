@@ -17,6 +17,9 @@ def health() -> dict:
     """健康检查，同时暴露关键配置是否已就绪。"""
     return {
         "status": "ok",
-        "ak_configured": bool(settings.BAIDU_SERVER_AK),
+        # 注意是 *_ready 而不是 bool(AK)：占位符也算未配置，
+        # 否则忘填 AK 时这里会报告"已配置"，而每个请求都失败
+        "ak_configured": settings.server_ak_ready,
+        "browser_ak_configured": settings.browser_ak_ready,
         "walk_minutes": settings.WALK_MINUTES,
     }

@@ -13,6 +13,7 @@ const AppConfig = {
     categories: [],
     keyCategories: [],
     backendReady: false,
+    browserReady: false,
 
     /**
      * 后端地址：本应用由 FastAPI **同源**托管前端（单端口部署），
@@ -44,6 +45,9 @@ const AppConfig = {
         this.categories = data.categories || [];
         this.keyCategories = data.key_categories || [];
         this.backendReady = !!data.backend_ready;
+        // 浏览器端 AK 缺失时地图会白屏——必须让界面说出来，
+        // 否则使用者只会看到一片空白，无从判断是网络、AK 还是代码问题
+        this.browserReady = !!data.browser_ready;
 
         return this;
     },
