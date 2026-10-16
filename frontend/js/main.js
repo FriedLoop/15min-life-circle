@@ -786,10 +786,17 @@
     async function boot() {
         try {
             await AppConfig.load();
-            setStatus(
-                AppConfig.backendReady ? '后端已就绪' : '后端缺 AK 配置',
-                AppConfig.backendReady ? 'badge-ok' : 'badge-warn'
-            );
+
+            // 两种 AK 分开提示。浏览器端 AK 缺失时地图一定白屏，
+            // 这时如果说"已就绪"，使用者会以为是网络或代码问题——
+            // 而实际上只需要补一行配置。
+            if (!AppConfig.backendReady) {
+                setStatus('后端缺 AK 配置', 'badge-warn');
+            } else if (!AppConfig.browserReady) {
+                setStatus('地图 AK 未配置（地图将白屏）', 'badge-warn');
+            } else {
+                setStatus('后端已就绪', 'badge-ok');
+            }
         } catch (err) {
             setStatus('后端未连接', 'badge-error');
             alertError(err.message);

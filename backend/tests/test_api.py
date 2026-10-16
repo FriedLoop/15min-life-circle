@@ -123,3 +123,37 @@ def test_report_endpoint_rejects_unknown_coord_type():
     )
 
     assert response.status_code == 422
+
+
+def test_placeholder_ak_is_reported_as_unconfigured(monkeypatch):
+    """模板占位符必须报告为「未配置」，不能显示「已就绪」。
+
+    端到端回归：`.env.example` 里的 `your_baidu_server_ak_here` 是非空字符串，
+    若只做非空判断，使用者忘填 AK 时界面会显示「后端已就绪」，
+    但每一个分析请求都会失败——"说好了却报错"是最难自查的一类问题。
+    """
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "BAIDU_SERVER_AK", "your_baidu_server_ak_here")
+    monkeypatch.setattr(settings, "BAIDU_BROWSER_AK", "your_baidu_browser_ak_here")
+
+    health = client.get("/api/health").json()
+    assert health["ak_configured"] is False
+    assert health["browser_ak_configured"] is False
+
+    page_config = client.get("/api/config").json()
+    assert page_config["backend_ready"] is False
+    # 浏览器端 AK 单独判定：缺它会导致地图白屏而不是接口报错
+    assert page_config["browser_ready"] is False
+
+
+def test_browser_ak_is_judged_separately_from_server_ak(monkeypatch):
+    """只配了服务端 AK 时，仍要明确告知地图不可用。"""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "BAIDU_SERVER_AK", "Ab3Kd9XmQ2Lp7Rs1Zt5Yv8Nc")
+    monkeypatch.setattr(settings, "BAIDU_BROWSER_AK", "")
+
+    page_config = client.get("/api/config").json()
+    assert page_config["backend_ready"] is True
+    assert page_config["browser_ready"] is False

@@ -32,5 +32,9 @@ async def get_config() -> dict:
         # 设施类别由后端统一定义，前端不再各维护一份，避免失配
         "categories": list(constants.FACILITY_CATEGORIES.keys()),
         "key_categories": list(constants.BLINDSPOT_CATEGORIES),
-        "backend_ready": bool(settings.BAIDU_SERVER_AK),
+        # 占位符视为未配置：避免"界面显示已就绪、实际上每个请求都失败"
+        "backend_ready": settings.server_ak_ready,
+        # 浏览器端 AK 缺失时地图会白屏，必须让前端能提前提示，
+        # 否则使用者只会看到一片空白地图，无从判断原因
+        "browser_ready": settings.browser_ak_ready,
     }

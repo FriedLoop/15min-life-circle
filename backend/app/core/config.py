@@ -12,6 +12,32 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # .env 固定读取 backend/.env，避免受启动工作目录影响
 _ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 
+# 模板里用于提示"此处填写"的写法。真实百度 AK 是随机字母数字串，
+# 不会以 your 开头、不含尖括号、也不会全是 x/下划线，因此下面这几条不会误判。
+_UNFILLED_PREFIXES = ("your", "your_", "your-")
+_UNFILLED_SUBSTRINGS = ("填入", "填写", "替换", "placeholder", "改成")
+
+
+def _looks_unfilled(value: str) -> bool:
+    """判断某个配置值是否仍是模板占位符（或为空）。
+
+    存在的意义：`.env.example` 里的占位符非空，若只做非空判断，
+    使用者忘填时界面会显示"已就绪"，却在每个请求上失败——这类
+    "说好了却报错"的问题最难自查，所以要提前识别。
+    """
+    text = (value or "").strip()
+    if not text:
+        return True
+    lowered = text.lower()
+    if lowered.startswith(_UNFILLED_PREFIXES):
+        return True
+    if any(char in text for char in "<>{}"):
+        return True
+    # 形如 xxx / xxx_xxx / ---- 的纯占位
+    if set(lowered) <= set("x_-·. "):
+        return True
+    return any(word in text for word in _UNFILLED_SUBSTRINGS)
+
 
 class Settings(BaseSettings):
     """应用配置，字段名即环境变量名。"""
@@ -121,6 +147,25 @@ class Settings(BaseSettings):
     def cors_origins(self) -> list[str]:
         """把逗号分隔的 CORS 配置解析成列表。"""
         return [item.strip() for item in self.CORS_ORIGINS.split(",") if item.strip()]
+
+    @property
+    def server_ak_ready(self) -> bool:
+        """服务端 AK 是否**真的可用**（而非只是非空）。
+
+        只用 `bool(AK)` 判断会踩一个很难排查的坑：`.env.example` 里的占位符是
+        `your_baidu_server_ak_here`，它非空，于是 /api/health 报告"已配置"、
+        前端顶上显示"后端已就绪"，但随后**每一个分析请求都会失败**
+        （百度返回 AK 参数错误）。使用者看到的是"界面说好了、一点就报错"。
+
+        因此这里把占位符也视为「未配置」，让界面如实提示"后端缺 AK 配置"。
+        判定只针对模板里的固定写法，不会误伤真实 AK（百度 AK 是随机字母数字串）。
+        """
+        return not _looks_unfilled(self.BAIDU_SERVER_AK)
+
+    @property
+    def browser_ak_ready(self) -> bool:
+        """浏览器端 AK 是否可用。未配置时地图会白屏，需要提前告知。"""
+        return not _looks_unfilled(self.BAIDU_BROWSER_AK)
 
 
 @lru_cache

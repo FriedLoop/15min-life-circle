@@ -3,7 +3,12 @@
 # 单容器部署：FastAPI 后端同时提供 API 与前端静态页面，
 # 评审启动后只需访问 http://localhost:8000 即可使用完整应用。
 
-FROM python:3.11-slim
+# 基础镜像可用 --build-arg 覆盖：国内网络直连 Docker Hub 常常失败，
+# 换用镜像加速源即可构建，无需改 Docker 全局配置：
+#   docker build --build-arg BASE_IMAGE=docker.1ms.run/library/python:3.11-slim .
+# 也可先 docker pull 加速源的同名镜像后 docker tag 成 python:3.11-slim。
+ARG BASE_IMAGE=python:3.11-slim
+FROM ${BASE_IMAGE}
 
 WORKDIR /app
 
@@ -19,5 +24,6 @@ WORKDIR /app/backend
 
 EXPOSE 8000
 
-# AK 等配置由 docker-compose 的 env_file 注入（读取 backend/.env）
+# AK 等配置在运行时注入（docker-compose 的 env_file 读取 backend/.env，
+# 或直接以环境变量传入），镜像本身不含任何密钥
 CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
