@@ -522,7 +522,7 @@ python backend/scripts/delivery_check.py
 退出码 `0` 表示通过；存在 `[FAIL]` 时返回 `1`。全部通过即代表交付要求已满足。
 
 > 自动化脚本无法覆盖「地图渲染是否真的不规则」「降级注入后表现如何」等需要人眼与真实接口确认的部分，
-> 这部分请按 [`docs/手动测试清单.md`](docs/手动测试清单.md) 逐项走查（9 组 108 项）。
+> 这部分请按 [`docs/手动测试清单.md`](docs/手动测试清单.md) 逐项走查（9 组 112 项）。
 
 ```powershell
 python backend/scripts/delivery_check.py --docker   # 额外验证 Docker 一键部署
