@@ -1,0 +1,98 @@
+{
+  "center": {
+    "lng": 113.881641,
+    "lat": 22.909011
+  },
+  "step_m": 150,
+  "minutes": 15,
+  "grid_points": 197,
+  "pruning": {
+    "reach_bound_m": 625.2,
+    "unreach_bound_m": 1105.7,
+    "coarse_step_m": 450
+  },
+  "baseline": {
+    "strategy": "single",
+    "calls": 197,
+    "reachable_points": 63,
+    "area_km2": 1.417,
+    "area_error_pct": 0.0,
+    "iou": 1.0
+  },
+  "coarse": {
+    "strategy": "coarse+idw",
+    "calls": 125,
+    "saving_pct": 36.5,
+    "reachable_points": 68,
+    "area_km2": 1.53,
+    "area_error_pct": 7.94,
+    "iou": 0.9265,
+    "interpolated_points": 72,
+    "mismatch_count": 5,
+    "mismatches": [
+      {
+        "lng": 113.884567,
+        "lat": 22.911706,
+        "straight_m": 423.8,
+        "truth_duration_s": 1070,
+        "zone": "certain_reach",
+        "truth": "unreachable"
+      },
+      {
+        "lng": 113.88603,
+        "lat": 22.911706,
+        "straight_m": 540.2,
+        "truth_duration_s": 1023,
+        "zone": "certain_reach",
+        "truth": "unreachable"
+      },
+      {
+        "lng": 113.887492,
+        "lat": 22.907664,
+        "straight_m": 617.8,
+        "truth_duration_s": 1480,
+        "zone": "certain_reach",
+        "truth": "unreachable"
+      },
+      {
+        "lng": 113.887492,
+        "lat": 22.909011,
+        "straight_m": 599.3,
+        "truth_duration_s": 1331,
+        "zone": "certain_reach",
+        "truth": "unreachable"
+      },
+      {
+        "lng": 113.887492,
+        "lat": 22.910358,
+        "straight_m": 617.8,
+        "truth_duration_s": 1181,
+        "zone": "certain_reach",
+        "truth": "unreachable"
+      }
+    ],
+    "idw_inside_samples": 52,
+    "idw_inside_median_s": 114,
+    "idw_inside_max_s": 635,
+    "idw_outside_samples": 20,
+    "idw_outside_median_s": 126
+  },
+  "sector": {
+    "strategy": "sector+idw",
+    "directions": 20,
+    "radii_m": [
+      200,
+      400,
+      600,
+      800,
+      1000,
+      1200
+    ],
+    "calls": 120,
+    "saving_pct": 39.1,
+    "reachable_points": 63,
+    "area_km2": 1.417,
+    "area_error_pct": 0.0,
+    "iou": 0.8806
+  }
+}

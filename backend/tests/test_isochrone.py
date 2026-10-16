@@ -13,9 +13,36 @@ import asyncio
 from app.services import isochrone as isochrone_service
 from app.services.baidu_client import BaiduApiError
 from app.utils.cache import isochrone_cache
+from app.utils.geo import haversine_distance
 
 LNG = 113.881641
 LAT = 22.909011
+
+# 假想路网：路网距离 = 直线距离 × 绕行系数，步行速度与配置一致。
+# 该模型满足分级网格剪枝所依赖的前提（绕行 ≤ DETOUR_FACTOR、速度 ≤ WALK_SPEED_MPS），
+# 因此它既能用来验证剪枝「省了算路」，又能验证剪枝「没有改变结论」。
+_DETOUR = 1.4
+
+
+def _fake_matrix_recording(detour: float = _DETOUR):
+    """返回（假的批量算路函数, 调用记录）。不触网、不消耗配额。"""
+    calls: list[int] = []
+
+    async def matrix(lng, lat, destinations, batch_size=None):
+        calls.append(len(destinations))
+        return [
+            {
+                "duration": int(
+                    haversine_distance(lng, lat, d[0], d[1])
+                    * detour
+                    / isochrone_service.settings.WALK_SPEED_MPS
+                ),
+                "distance": int(haversine_distance(lng, lat, d[0], d[1]) * detour),
+            }
+            for d in destinations
+        ]
+
+    return matrix, calls
 
 
 def test_isochrone_degrades_when_routematrix_unavailable(monkeypatch):
@@ -95,3 +122,100 @@ def test_isochrone_treats_failed_route_as_unreachable(monkeypatch):
     assert result.reachable_points == result.total_points - 1
     failed_point = next(point for point in result.points if point.duration is None)
     assert failed_point.reachable is False
+
+
+def _reachable_keys(result) -> set[tuple[float, float]]:
+    return {(p.lng, p.lat) for p in result.points if p.reachable}
+
+
+def test_coarse_grid_prunes_route_calls(monkeypatch):
+    """分级网格必须真的少调算路，且如实上报调用量。"""
+    monkeypatch.setattr(isochrone_service.settings, "CACHE_ENABLED", False)
+    matrix, calls = _fake_matrix_recording()
+    monkeypatch.setattr(isochrone_service, "walking_matrix", matrix)
+
+    single = asyncio.run(isochrone_service.compute_isochrone(LNG, LAT))
+    single_calls = sum(calls)
+
+    calls.clear()
+    coarse = asyncio.run(
+        isochrone_service.compute_isochrone(LNG, LAT, coarse=True)
+    )
+    coarse_calls = sum(calls)
+
+    assert single.strategy == "single"
+    assert coarse.strategy == "coarse"
+    assert single.routed_points == single.total_points
+
+    # 调用量确实下降，且上报值与实际发出的终点数一致
+    assert coarse_calls == coarse.routed_points
+    assert coarse_calls < single_calls, f"未省算路：{coarse_calls} vs {single_calls}"
+    routed_fine = len([p for p in coarse.points if not p.interpolated])
+    assert coarse.interpolated_points == coarse.total_points - routed_fine
+    assert coarse.interpolated_points > 0
+
+
+def test_coarse_grid_matches_baseline_when_detour_bound_holds(monkeypatch):
+    """在路网满足「绕行系数 <= DETOUR_FACTOR」的前提下，剪枝结论与单级网格一致。
+
+    注意这是**有前提的**结论：实测（松山湖校区）存在绕行系数 2.8 的点，
+    此时剪枝会误判——见 services/isochrone.py 模块 docstring 与
+    scripts/compare_grid_strategies.py 的实测对照。本用例锁定的是
+    「前提成立时不该多算路、也不该改变结论」，避免剪枝逻辑本身写错。
+    """
+    monkeypatch.setattr(isochrone_service.settings, "CACHE_ENABLED", False)
+    matrix, _calls = _fake_matrix_recording()
+    monkeypatch.setattr(isochrone_service, "walking_matrix", matrix)
+
+    single = asyncio.run(isochrone_service.compute_isochrone(LNG, LAT, step_m=150))
+    coarse = asyncio.run(
+        isochrone_service.compute_isochrone(LNG, LAT, step_m=150, coarse=True)
+    )
+
+    assert _reachable_keys(single) == _reachable_keys(coarse)
+    assert single.reachable_points == coarse.reachable_points
+    assert single.total_points == coarse.total_points
+
+
+def test_coarse_grid_is_lossy_when_detour_bound_is_violated(monkeypatch):
+    """绕行系数超过 DETOUR_FACTOR 时分级网格会误判——这正是它默认关闭的原因。
+
+    用绕行系数 2.8 的合成路网复现「实测松山湖被水域 / 围墙切断」的情形：
+    single 策略仍是基准，coarse 会多算出可达点。把这个已知限制固化成用例，
+    避免有人把它当成无损优化而改成默认开启。
+    """
+    monkeypatch.setattr(isochrone_service.settings, "CACHE_ENABLED", False)
+    matrix, _calls = _fake_matrix_recording(detour=2.8)
+    monkeypatch.setattr(isochrone_service, "walking_matrix", matrix)
+
+    single = asyncio.run(isochrone_service.compute_isochrone(LNG, LAT, step_m=150))
+    coarse = asyncio.run(
+        isochrone_service.compute_isochrone(LNG, LAT, step_m=150, coarse=True)
+    )
+
+    # 剪枝省了算路，但代价是可达面积被高估
+    assert coarse.routed_points < single.routed_points
+    assert _reachable_keys(coarse) - _reachable_keys(single)
+
+
+def test_coarse_grid_interpolated_duration_respects_geometry(monkeypatch):
+    """插值耗时不得与几何结论冲突：必然可达的点不能出现超过上界的耗时。"""
+    monkeypatch.setattr(isochrone_service.settings, "CACHE_ENABLED", False)
+    matrix, _calls = _fake_matrix_recording()
+    monkeypatch.setattr(isochrone_service, "walking_matrix", matrix)
+
+    result = asyncio.run(
+        isochrone_service.compute_isochrone(LNG, LAT, step_m=150, coarse=True)
+    )
+    threshold = result.threshold_seconds
+    speed = isochrone_service.settings.WALK_SPEED_MPS
+
+    for point in result.points:
+        if not point.interpolated:
+            continue
+        straight = haversine_distance(LNG, LAT, point.lng, point.lat)
+        if point.reachable:
+            assert point.duration <= threshold
+        else:
+            # 必然不可达：耗时下界由直线距离给出
+            assert point.duration > straight / speed - 1

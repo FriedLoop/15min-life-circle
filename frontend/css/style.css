@@ -97,6 +97,77 @@ body {
 .hint {
     font-size: 12px;
     color: var(--muted);
+    line-height: 1.6;
+}
+
+/* ---------------- 可折叠面板 ----------------
+   侧栏原本四个面板全部展开，报告一出来要先滚过两个输入块才看得到结论。
+   改成 <details class="panel">：标题行可点击收起，出报告后输入区自动收起（见 main.js）。
+   用原生 details 而不是自绘折叠，键盘与无障碍行为都是现成的。 */
+.panel > summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+/* 去掉浏览器默认的三角标记（Chrome/Safari 与 Firefox 写法不同） */
+.panel > summary::-webkit-details-marker {
+    display: none;
+}
+
+.panel > summary::marker {
+    content: "";
+}
+
+/* 覆盖 .panel h2 的下外边距：它现在在 summary 里，间距交给 summary 控制 */
+.panel > summary > h2 {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+}
+
+.panel > summary:hover > h2 {
+    color: var(--primary);
+}
+
+/* 右侧小三角指示折叠状态，展开时翻转 */
+.panel > summary::after {
+    content: "";
+    flex: 0 0 auto;
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid var(--muted);
+    transition: transform 0.15s;
+}
+
+.panel[open] > summary {
+    margin-bottom: 12px;
+}
+
+.panel[open] > summary::after {
+    transform: rotate(180deg);
+}
+
+/* 有损近似警示：只在选中「分级网格」时出现，默认不占位置 */
+.inline-warn {
+    margin-top: 6px;
+    padding: 6px 8px;
+    font-size: 11px;
+    line-height: 1.6;
+    color: #92400e;
+    background: #fffbeb;
+    border-left: 3px solid #f59e0b;
+    border-radius: 0 4px 4px 0;
+}
+
+/* 主操作独立于可折叠面板：面板收起时按钮不能跟着消失 */
+#primary-action {
+    margin-bottom: 14px;
 }
 
 /* ---------------- 主体布局 ----------------
@@ -360,6 +431,14 @@ input[type="range"] {
     line-height: 1.6;
 }
 
+/* 「未做盲区判定」等需要提醒而非仅说明的情形：换警示配色，
+   避免和普通口径说明混为一谈 */
+.coverage-note.is-warn {
+    color: #92400e;
+    background: #fffbeb;
+    border-left-color: #f59e0b;
+}
+
 .chart-block {
     margin-bottom: 14px;
 }
@@ -509,8 +588,315 @@ input[type="range"] {
     to { transform: rotate(360deg); }
 }
 
+/* ---------------- 中心点来源说明 ---------------- */
+.coord-extra {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.5;
+}
+
+/* ---------------- 地图上的图层控制 ---------------- */
+/* 图层控制：默认隐藏（见 index.html 注释），分析完成后由 main.js 显示。
+   轻微淡入，避免「啪」地出现挡住刚画好的热力图。 */
+#map-controls {
+    position: absolute;
+    right: 14px;
+    top: 14px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    z-index: 5;
+    min-width: 196px;
+    /* display:none → block 的状态切换会重放动画，省掉「显示/隐藏」双套类名 */
+    animation: fade-in-down 0.2s ease-out;
+}
+
+@keyframes fade-in-down {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #map-controls { animation: none; }
+}
+
+.mc-group + .mc-group {
+    margin-top: 9px;
+}
+
+.mc-title {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 5px;
+}
+
+.mc-btns {
+    display: flex;
+    gap: 6px;
+}
+
+.mc-btn.is-active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+.mc-btn.is-active:hover {
+    color: #fff;
+}
+
+.mc-note {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 8px;
+    line-height: 1.5;
+    max-width: 220px;
+}
+
+/* ---------------- 缓存与配额实证徽标 ---------------- */
+.cache-badge {
+    font-size: 11px;
+    line-height: 1.6;
+    padding: 7px 9px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    border-left: 3px solid var(--primary);
+    background: #eff6ff;
+    color: #1e40af;
+}
+
+.cache-badge.is-live {
+    border-left-color: #16a34a;
+    background: #f0fdf4;
+    color: #15803d;
+}
+
+/* 分级网格是有损近似，用警示色与普通状态区分 */
+.cache-badge.is-warn {
+    border-left-color: #f59e0b;
+    background: #fffbeb;
+    color: #92400e;
+}
+
+/* ---------------- 逐类盲区率表格 ---------------- */
+.cat-table {
+    font-size: 12px;
+}
+
+.cat-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.cat-table th,
+.cat-table td {
+    padding: 5px 6px;
+    border-bottom: 1px solid var(--border);
+    text-align: right;
+}
+
+.cat-table th:first-child,
+.cat-table td:first-child {
+    text-align: left;
+}
+
+.cat-table th {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+}
+
+.cat-table tr.is-judge td:first-child {
+    font-weight: 600;
+}
+
+.cat-table .cat-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.cat-table .bar-cell {
+    width: 62px;
+}
+
+.cat-table .mini-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: #eef2f7;
+    overflow: hidden;
+}
+
+.cat-table .mini-bar > span {
+    display: block;
+    height: 100%;
+    background: #dc2626;
+}
+
+/* ---------------- 原始 POI 检索结果 ---------------- */
+#poi-result {
+    font-size: 12px;
+}
+
+.poi-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px 8px;
+    margin-bottom: 8px;
+}
+
+.poi-counts .chip {
+    background: #f9fafb;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2px 9px;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.poi-counts .chip b {
+    color: var(--text);
+}
+
+.poi-list {
+    max-height: 240px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.poi-list .poi-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 5px 8px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.poi-list .poi-row:last-child {
+    border-bottom: none;
+}
+
+.poi-list .poi-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.poi-list .poi-dist {
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+/* 盲区点位标注：加粗红框 */
+.blind-outline {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #b91c1c;
+    border-radius: 2px;
+    vertical-align: -2px;
+}
+
+/* ---------------- 口径说明抽屉 ----------------
+   侧栏各字段的详细解释统一收进这里，由顶栏「? 口径说明」打开。
+   用 fixed 覆盖层而不是侧栏内联折叠：解释内容长（7 组），
+   放在侧栏里会再次把控件挤走，等于没省。 */
+#help-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(17, 24, 39, 0.35);
+    z-index: 40;
+}
+
+#help-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 41;
+    display: flex;
+    flex-direction: column;
+    width: 440px;
+    max-width: 92vw;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    box-shadow: -6px 0 22px rgba(0, 0, 0, 0.14);
+    /* display:none → flex 的状态切换会重放动画，省掉「显示/隐藏」两套类名 */
+    animation: drawer-in 0.18s ease-out;
+}
+
+@keyframes drawer-in {
+    from { transform: translateX(24px); opacity: 0.25; }
+    to { transform: none; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #help-drawer { animation: none; }
+}
+
+.help-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.help-head h2 {
+    flex: 1;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.help-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 14px 16px 28px;
+}
+
+.help-item + .help-item {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #f3f4f6;
+}
+
+.help-item h3 {
+    margin: 0 0 6px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.help-item p {
+    margin: 0 0 6px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.75;
+}
+
+.help-item p:last-child {
+    margin-bottom: 0;
+}
+
+.help-item code {
+    padding: 1px 4px;
+    background: #f3f4f6;
+    border-radius: 3px;
+    font-size: 11px;
+}
+
 /* 小屏适配：面板收窄 */
 @media (max-width: 1100px) {
     #sidebar { width: 320px; }
     #map-wrap { left: 320px; }
+    #help-drawer { width: 360px; }
 }

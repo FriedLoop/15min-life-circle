@@ -1,0 +1,390 @@
+{
+  "generated_at": "2026-10-16",
+  "match_distance_m": 100,
+  "name_min_common": 5,
+  "name_min_ratio": 0.6,
+  "poi_radius_m": 2000,
+  "geocode_calls": 0,
+  "poi_search_calls": 0,
+  "points": [
+    {
+      "point": "东莞理工学院（松山湖校区）",
+      "town": "松山湖",
+      "lng": 113.881641,
+      "lat": 22.909011,
+      "categories": {
+        "药店": {
+          "source": "东莞市医疗保障局·市内定点药店查询",
+          "scope_note": "仅医保定点药店，非定点药店不在名录内",
+          "authority_total": 33,
+          "authority_located": 33,
+          "authority_in_range": 2,
+          "baidu_poi": 1,
+          "recall": 0.5,
+          "hits_by_method": {
+            "name+distance": 1,
+            "name": 0,
+            "distance": 0
+          },
+          "baidu_result_capped": false,
+          "baidu_only_count": 0,
+          "uncovered_total": 1,
+          "uncovered_but_in_baidu_db": null,
+          "misses": [
+            {
+              "name": "东莞市国药佳纷天地药店有限公司",
+              "address": "广东省东莞市松山湖园区博恒二路1号5栋201室",
+              "nearest_poi": "东莞国药(晓月湖药店)",
+              "nearest_gap_m": 1208.7
+            }
+          ]
+        },
+        "幼儿园": {
+          "source": "东莞市教育局·公办（集体办）幼儿园一览表",
+          "scope_note": "仅公办/集体办幼儿园，不含民办",
+          "authority_total": 5,
+          "authority_located": 5,
+          "authority_in_range": 1,
+          "baidu_poi": 33,
+          "recall": 1.0,
+          "hits_by_method": {
+            "name+distance": 0,
+            "name": 1,
+            "distance": 0
+          },
+          "baidu_result_capped": false,
+          "baidu_only_count": 32,
+          "uncovered_total": 0,
+          "uncovered_but_in_baidu_db": null,
+          "misses": []
+        }
+      }
+    },
+    {
+      "point": "东莞理工学院（莞城校区）",
+      "town": "莞城",
+      "lng": 113.779678,
+      "lat": 23.057248,
+      "categories": {
+        "药店": {
+          "source": "东莞市医疗保障局·市内定点药店查询",
+          "scope_note": "仅医保定点药店，非定点药店不在名录内",
+          "authority_total": 64,
+          "authority_located": 63,
+          "authority_in_range": 17,
+          "baidu_poi": 40,
+          "recall": 0.3529,
+          "hits_by_method": {
+            "name+distance": 1,
+            "name": 2,
+            "distance": 3
+          },
+          "baidu_result_capped": true,
+          "baidu_only_count": 34,
+          "uncovered_total": 11,
+          "uncovered_but_in_baidu_db": null,
+          "misses": [
+            {
+              "name": "广东健药医药投资有限公司东莞莞城莞龙药店",
+              "address": "广东省东莞市莞城街道莞龙路莞城段2号天林名苑2号楼104室",
+              "nearest_poi": "东莞市千味药医药",
+              "nearest_gap_m": 401.6
+            },
+            {
+              "name": "广东省东莞国药集团有限公司莞城翠珑湾药店",
+              "address": "广东省东莞市莞城街道东纵路莞城段40号丰华广场3栋109室、110室",
+              "nearest_poi": "时珍大药房(罗一分店)",
+              "nearest_gap_m": 415.2
+            },
+            {
+              "name": "东莞市莞城康如药店",
+              "address": "广东省东莞市莞城街道白沙塘一街10号108室",
+              "nearest_poi": "东莞市莞城上善堂药店",
+              "nearest_gap_m": 395.4
+            },
+            {
+              "name": "东莞莞城国药城区添宝药店有限公司",
+              "address": "广东省东莞市莞城街道天宝路4号2单元101室",
+              "nearest_poi": "东莞国药(主山药店)",
+              "nearest_gap_m": 536.2
+            },
+            {
+              "name": "东莞市莞城健林医药店（个人独资）",
+              "address": "广东省东莞市莞城街道兴塘东平街47号107室",
+              "nearest_poi": "时珍大药房(罗一分店)",
+              "nearest_gap_m": 218.8
+            },
+            {
+              "name": "康泽药业连锁有限公司东莞翠珑湾药店",
+              "address": "广东省东莞市莞城街道东纵路莞城段40号丰华广场5栋206室",
+              "nearest_poi": "时珍大药房(罗一分店)",
+              "nearest_gap_m": 415.2
+            },
+            {
+              "name": "广东省东莞国药集团药材有限公司莞城卓越中环药店",
+              "address": "广东省东莞市莞城街道天宝路16号巨汉商业中心1号楼104、105室",
+              "nearest_poi": "东莞东城国药高田坊二药店有限公司",
+              "nearest_gap_m": 471.3
+            },
+            {
+              "name": "东莞市莞城聚兴药店",
+              "address": "广东省东莞市莞城街道兴塘兴华路49号110室",
+              "nearest_poi": "时珍大药房(罗一分店)",
+              "nearest_gap_m": 423.9
+            },
+            {
+              "name": "东莞市莞城大沙药店",
+              "address": "广东省东莞市莞城街道白沙塘一街三巷6号101室",
+              "nearest_poi": "大参林(莞城金沙分店)",
+              "nearest_gap_m": 405.7
+            },
+            {
+              "name": "广东省东莞国药集团城区医药有限公司健强药店",
+              "address": "广东省东莞市莞城街道学院路6号侨苑13栋101室",
+              "nearest_poi": "平价药店",
+              "nearest_gap_m": 100.6
+            },
+            {
+              "name": "广东省东莞国药集团医药贸易中心有限公司新风药店",
+              "address": "广东省东莞市莞城街道莞城新风路172号",
+              "nearest_poi": "东莞市东城区堑头路13号大参林(健和店)",
+              "nearest_gap_m": 371.5
+            }
+          ]
+        },
+        "幼儿园": {
+          "source": "东莞市教育局·公办（集体办）幼儿园一览表",
+          "scope_note": "仅公办/集体办幼儿园，不含民办",
+          "authority_total": 6,
+          "authority_located": 6,
+          "authority_in_range": 3,
+          "baidu_poi": 40,
+          "recall": 1.0,
+          "hits_by_method": {
+            "name+distance": 2,
+            "name": 1,
+            "distance": 0
+          },
+          "baidu_result_capped": true,
+          "baidu_only_count": 37,
+          "uncovered_total": 0,
+          "uncovered_but_in_baidu_db": null,
+          "misses": []
+        },
+        "小学": {
+          "source": "东莞市教育局·义务教育标准化学校名单",
+          "scope_note": "仅标准化学校，且原表无地址（按名称定位）",
+          "authority_total": 10,
+          "authority_located": 10,
+          "authority_in_range": 3,
+          "baidu_poi": 3,
+          "recall": 0.3333,
+          "hits_by_method": {
+            "name+distance": 1,
+            "name": 0,
+            "distance": 0
+          },
+          "baidu_result_capped": false,
+          "baidu_only_count": 2,
+          "uncovered_total": 2,
+          "uncovered_but_in_baidu_db": null,
+          "misses": [
+            {
+              "name": "东莞市莞城中心小学",
+              "address": "",
+              "nearest_poi": "步步高小学",
+              "nearest_gap_m": 1062.3
+            },
+            {
+              "name": "东莞市莞城和阳小学",
+              "address": "",
+              "nearest_poi": "步步高小学",
+              "nearest_gap_m": 1023.8
+            }
+          ]
+        }
+      }
+    },
+    {
+      "point": "东莞市虎门镇北栅行政小区",
+      "town": "虎门",
+      "lng": 113.723151,
+      "lat": 22.833109,
+      "categories": {
+        "药店": {
+          "source": "东莞市医疗保障局·市内定点药店查询",
+          "scope_note": "仅医保定点药店，非定点药店不在名录内",
+          "authority_total": 135,
+          "authority_located": 132,
+          "authority_in_range": 28,
+          "baidu_poi": 40,
+          "recall": 0.4286,
+          "hits_by_method": {
+            "name+distance": 1,
+            "name": 2,
+            "distance": 9
+          },
+          "baidu_result_capped": true,
+          "baidu_only_count": 28,
+          "uncovered_total": 16,
+          "uncovered_but_in_baidu_db": null,
+          "misses": [
+            {
+              "name": "东莞市碧桂医药有限公司",
+              "address": "广东省东莞市虎门镇北栅东坊路3号之一客天下花园2号楼105室",
+              "nearest_poi": "大参林(虎门碧桂店)",
+              "nearest_gap_m": 207.7
+            },
+            {
+              "name": "东莞市虎门康居医药店（个人独资）",
+              "address": "广东省东莞市虎门镇虎门长德路38号虎门万科城114栋115室",
+              "nearest_poi": "莞源堂医药",
+              "nearest_gap_m": 1121.6
+            },
+            {
+              "name": "深圳市海王星辰健康药房连锁有限公司东莞虎门宁馨分店",
+              "address": "广东省东莞市虎门镇宁馨北路12号113室",
+              "nearest_poi": "信立德连锁药房(馨和分店)",
+              "nearest_gap_m": 140.4
+            },
+            {
+              "name": "广东省东莞国药集团虎门医药有限公司龙眼大道药店",
+              "address": "广东省东莞市虎门镇龙眼路36号103室",
+              "nearest_poi": "大参林(丰德店)",
+              "nearest_gap_m": 118.8
+            },
+            {
+              "name": "广东省东莞国药集团虎门医药有限公司捷东药店",
+              "address": "广东省东莞市虎门镇捷东路2号虎门万科花园3号楼113室",
+              "nearest_poi": "仁诚医药有限公司",
+              "nearest_gap_m": 999.1
+            },
+            {
+              "name": "广东省东莞国药集团虎门医药有限公司长德药店",
+              "address": "广东省东莞市虎门镇虎门长德路38号虎门万科城12栋110室",
+              "nearest_poi": "莞源堂医药",
+              "nearest_gap_m": 1121.6
+            },
+            {
+              "name": "深圳市海王星辰健康药房连锁有限公司东莞虎门赤岗分店",
+              "address": "广东省东莞市虎门镇赤岗南坊路43号107室",
+              "nearest_poi": "金汶医药(虎门第九分店)",
+              "nearest_gap_m": 116.3
+            },
+            {
+              "name": "广东省东莞国药集团虎门医药有限公司大宁药店",
+              "address": "广东省东莞市虎门镇宁馨中路77号",
+              "nearest_poi": "莞源堂医药",
+              "nearest_gap_m": 722.6
+            },
+            {
+              "name": "东莞市虎门康艺轩药店",
+              "address": "广东省东莞市虎门镇赤岗翠湖路1号1栋103室",
+              "nearest_poi": "金汶医药(虎门第九分店)",
+              "nearest_gap_m": 156.8
+            },
+            {
+              "name": "广东国药医药连锁企业有限公司东莞虎门赤岗一分店",
+              "address": "东莞市虎门镇赤岗社区南坊路38号",
+              "nearest_poi": "金汶医药(虎门第九分店)",
+              "nearest_gap_m": 148.3
+            },
+            {
+              "name": "东莞市虎门宁馨药店",
+              "address": "广东省东莞市虎门镇宁馨中路88号101室",
+              "nearest_poi": "莞源堂医药",
+              "nearest_gap_m": 796.6
+            },
+            {
+              "name": "东莞市虎门金宁药店（个人独资）",
+              "address": "广东省东莞市虎门镇虎门长德路38号虎门万科城124栋109室",
+              "nearest_poi": "莞源堂医药",
+              "nearest_gap_m": 1121.6
+            },
+            {
+              "name": "广东省东莞国药集团虎门医药有限公司北栅东坊药店",
+              "address": "广东省东莞市虎门镇北栅东坊路3号之一客天下花园2号楼101室",
+              "nearest_poi": "大参林(虎门碧桂店)",
+              "nearest_gap_m": 207.7
+            },
+            {
+              "name": "广东省东莞国药集团虎门医药有限公司万科城药店",
+              "address": "广东省东莞市虎门镇虎门长德路38号虎门万科城120栋104室、105室",
+              "nearest_poi": "莞源堂医药",
+              "nearest_gap_m": 1121.6
+            },
+            {
+              "name": "广东省东莞国药集团虎门医药有限公司龙眼药店",
+              "address": "广东省东莞市虎门镇龙眼东三路三巷12号101室",
+              "nearest_poi": "东莞国药虎门富健药店(龙眼东二路店)",
+              "nearest_gap_m": 314.6
+            },
+            {
+              "name": "广东省东莞国药集团虎门医药有限公司怀德药店",
+              "address": "广东省东莞市虎门镇怀德路319号103室",
+              "nearest_poi": "兴聪药房",
+              "nearest_gap_m": 331.4
+            }
+          ]
+        },
+        "幼儿园": {
+          "source": "东莞市教育局·公办（集体办）幼儿园一览表",
+          "scope_note": "仅公办/集体办幼儿园，不含民办",
+          "authority_total": 20,
+          "authority_located": 20,
+          "authority_in_range": 3,
+          "baidu_poi": 40,
+          "recall": 1.0,
+          "hits_by_method": {
+            "name+distance": 2,
+            "name": 0,
+            "distance": 1
+          },
+          "baidu_result_capped": true,
+          "baidu_only_count": 37,
+          "uncovered_total": 0,
+          "uncovered_but_in_baidu_db": null,
+          "misses": []
+        },
+        "小学": {
+          "source": "东莞市教育局·义务教育标准化学校名单",
+          "scope_note": "仅标准化学校，且原表无地址（按名称定位）",
+          "authority_total": 37,
+          "authority_located": 37,
+          "authority_in_range": 5,
+          "baidu_poi": 3,
+          "recall": 0.4,
+          "hits_by_method": {
+            "name+distance": 1,
+            "name": 1,
+            "distance": 0
+          },
+          "baidu_result_capped": false,
+          "baidu_only_count": 1,
+          "uncovered_total": 3,
+          "uncovered_but_in_baidu_db": null,
+          "misses": [
+            {
+              "name": "东莞市虎门镇龙眼小学",
+              "address": "",
+              "nearest_poi": "东莞虎门北栅小学",
+              "nearest_gap_m": 490.8
+            },
+            {
+              "name": "东莞市虎门镇大宁小学",
+              "address": "",
+              "nearest_poi": "虎门镇实验小学",
+              "nearest_gap_m": 1365.6
+            },
+            {
+              "name": "东莞市虎门成才实验学校",
+              "address": "",
+              "nearest_poi": "东莞虎门北栅小学",
+              "nearest_gap_m": 1266.5
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

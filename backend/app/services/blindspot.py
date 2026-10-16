@@ -56,7 +56,7 @@ def _accessibility_score(
 
     **切勿改用距离线性衰减**：
         判定阈值本身就是 1000 m，一个距离 900 m 的设施按定义已经可及；
-        若用 1 − d/1000 计分，它只得 0.1 分，
+        若用 1 - d/1000 计分，它只得 0.1 分，
         于是即便覆盖率 100% 的区域也会被算成接近 0 而显示为红色，
         与「覆盖率高」这一事实自相矛盾（实测莞城即因此整片发红）。
 
@@ -109,33 +109,54 @@ async def compute_blindspot(
 
     两个类别参数的分工：
         categories           检索并统计覆盖率的类别（默认全部 10 类）
-        blindspot_categories 实际判定「是否盲区」的类别（默认赛题点名的三类）
+        blindspot_categories 实际判定「是否盲区」的类别（**必须是 categories 的子集**）
 
     分开的原因：若用全部 10 类做判定，养老这类普遍稀缺的设施
     会让几乎所有点都命中「缺失」，盲区率被推向 100%，失去区分度。
     赛题原话是「1 公里内没有菜市场、药店或小学」，判定应只针对这三类。
 
+    判定类别的两种来源：
+        · 显式传入 blindspot_categories → 按传入的来，并自动补进检索范围
+        · 不传 → 取「赛题三类 ∩ categories」；**不再强行把三类塞回检索范围**。
+          交集为空时（用户把三类全取消勾选）判定集为空，
+          响应里 judge_categories 为 []、blind_points 为 0，
+          调用方据此区分「没有盲区」与「本次未做判定」——
+          两者绝不能混为一谈，否则用户会把「未判定」读成「没有盲区」。
+
     Args:
         lng / lat: 中心点（BD09）
         categories: 检索与统计的类别；为空表示全部
-        blindspot_categories: 判定盲区的类别；为空表示赛题三类
+        blindspot_categories: 判定盲区的类别；为空表示「赛题三类 ∩ categories」
         threshold_m: 判定阈值（米），默认 1000
         walk_minutes: 生活圈时间阈值，默认 15
         isochrone: 已算好的等时圈；传入可避免重复计算（报告聚合时用）
 
     Returns:
         盲区识别结果，含逐点判定与各类别覆盖率。
+        judge_categories 为空列表时表示本次未做盲区判定。
     """
     threshold = threshold_m or settings.BLINDSPOT_DISTANCE_M
     minutes = walk_minutes or settings.WALK_MINUTES
 
     cats = categories or list(constants.FACILITY_CATEGORIES.keys())
-    judge_cats = blindspot_categories or list(constants.BLINDSPOT_CATEGORIES)
 
-    # 判定类别必须落在检索范围内，否则查不到数据
-    for cat in judge_cats:
-        if cat not in cats:
-            cats.append(cat)
+    # 判定类别的两种来源语义完全不同，不能混为一谈：
+    #
+    #   1. 调用方**显式指定** blindspot_categories —— 这是明确要求「判定这几类」，
+    #      因此必须保证它们已被检索，否则拿不到数据、无从判定。
+    #   2. 未指定 —— 按赛题口径默认判定关键三类，但**只在用户已选择的范围内判定**。
+    #
+    # 第 2 种曾经写成「无条件把关键三类补进 cats」，后果是：用户取消勾选关键三类后，
+    # 报告里仍然冒出这三类——覆盖率、逐类盲区率、健康度全都被悄悄扩回全量，
+    # 用户的筛选形同虚设（实测复现：取消勾选后报告仍显示完整的三类）。
+    # 现在改为取交集：用户没选，就不检索、不统计、不判定。
+    if blindspot_categories:
+        judge_cats = list(blindspot_categories)
+        for cat in judge_cats:
+            if cat not in cats:
+                cats.append(cat)
+    else:
+        judge_cats = [c for c in constants.BLINDSPOT_CATEGORIES if c in cats]
 
     # 缓存
     cache_key = _make_cache_key(

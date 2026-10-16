@@ -142,3 +142,12 @@ __pycache__/
 *.pyc
 
 .idea/
+
+# 对照实验脚本的算路结果缓存：避免重复调试反复消耗配额（本机产物，不入库）
+backend/.route_cache.json
+backend/scripts/grid_strategy_result_offline.json
+
+# 权威名录校验脚本的接口结果缓存：地理编码与地点检索都按次消耗配额，
+# 落盘后重跑为 0 次调用（本机产物，不入库；权威名录 CSV 本身要入库）
+backend/.authority_geocode_cache.json
+backend/.authority_poi_cache.json

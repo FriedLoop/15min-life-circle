@@ -1,7 +1,7 @@
 """设施分类与检索策略的单元测试。"""
 
 from app.core import constants
-from app.services.poi import classify_poi
+from app.services.poi import _category_query, classify_poi
 
 
 def test_classify_prefers_school_over_pharmacy():
@@ -26,10 +26,23 @@ def test_classify_unknown_falls_back_to_other():
     assert classify_poi("环球经贸中心") == "其他"
 
 
-def test_poi_query_uses_dollar_union():
-    """并集检索要求多个关键字以 $ 分隔。"""
-    assert "$" in constants.POI_QUERY
-    assert len(constants.POI_QUERY.split("$")) == len(constants.POI_QUERY_KEYWORDS)
+def test_category_query_uses_dollar_union():
+    """同一类别内的多个近义关键词以 $ 取并集，检索词与分类口径同源。
+
+    逐类检索时每个请求的 query 由 _category_query 拼接：
+    直接复用 FACILITY_CATEGORIES 的同义词，避免「分类表」与「检索词表」
+    各维护一份而逐渐失配。
+    """
+    for category, keywords in constants.FACILITY_CATEGORIES.items():
+        query = _category_query(category)
+        assert len(query.split("$")) == len(keywords), category
+        # 百度圆形区域检索的多关键字上限为 10 个
+        assert len(keywords) <= 10, f"{category} 的同义关键词超过百度上限"
+
+
+def test_category_query_falls_back_to_category_name():
+    """类别未定义关键词时直接以类别名检索，而不是返回空串。"""
+    assert _category_query("尚未定义的类别") == "尚未定义的类别"
 
 
 def test_blindspot_categories_are_subset_of_defined():

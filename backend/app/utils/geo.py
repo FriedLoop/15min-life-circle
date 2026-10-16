@@ -79,6 +79,52 @@ def generate_square_grid(
     return points
 
 
+def idw_interpolate(
+    lng: float,
+    lat: float,
+    samples: list[tuple[float, float, float]],
+    power: float = 2.0,
+    neighbors: int = 8,
+) -> float | None:
+    """反距离加权插值（Inverse Distance Weighting）。
+
+    用途：分级网格只对「灰色地带」做了真实算路，内部网格点的耗时
+    由已采样点插值补全，从而在不增加 API 调用的前提下保持热力图连续。
+
+    公式：v = Σ(w_i · v_i) / Σw_i，其中 w_i = 1 / d_i^power。
+    取最近的 neighbors 个样本，避免远处样本把局部梯度抹平。
+
+    Args:
+        lng / lat: 待插值点
+        samples: [(lng, lat, value), ...]，已采样的点及其取值
+        power: 距离衰减指数，2 表示权重随距离平方衰减
+        neighbors: 参与插值的最近样本数
+
+    Returns:
+        插值结果；样本为空时返回 None。
+    """
+    if not samples:
+        return None
+
+    scored = sorted(
+        ((haversine_distance(lng, lat, s_lng, s_lat), value) for s_lng, s_lat, value in samples),
+        key=lambda pair: pair[0],
+    )[:neighbors]
+
+    # 与某个样本重合时直接取其值，避免除零
+    if scored[0][0] < 1e-6:
+        return scored[0][1]
+
+    weight_sum = 0.0
+    value_sum = 0.0
+    for distance, value in scored:
+        weight = 1.0 / (distance**power)
+        weight_sum += weight
+        value_sum += weight * value
+
+    return value_sum / weight_sum
+
+
 def quantize_coord(lng: float, lat: float, meters: float) -> tuple[int, int]:
     """把坐标量化到指定米数的网格。
 

@@ -1,14 +1,20 @@
 /**
  * 图层绘制。
  *
- * 热力图的语义（重要）：
- *     着色依据是该点的**综合设施可达性**，而不是步行耗时。
- *     耗时只反映「走得远近」，可达性才反映「到了之后有没有东西用」——
- *     这才是生活圈体检要表达的东西。
+ * 提供两种可切换的热力图，不是替代关系而是互补：
  *
- *     颜色含义：绿 = 周边设施便利；红 = 配套匮乏（即服务盲区）。
- *     因为只在等时圈范围内着色，一张图同时表达了
- *     「等时圈范围」与「盲区分布」，红区即盲区。
+ *     1. 设施可达性（drawAccessibility，默认）
+ *        着色依据是该点的**综合设施可达性**，颜色含义：绿 = 周边设施便利，
+ *        红 = 配套匮乏（即服务盲区）。只在等时圈范围内着色，
+ *        因此一张图同时表达了「等时圈范围」与「盲区分布」，红区即盲区。
+ *
+ *     2. 步行耗时（drawDuration）
+ *        着色依据是该点的**真实步行耗时**。它不回答「有没有东西用」，
+ *        而是回答「这段路走起来多费劲」——同一个直线距离上，
+ *        路网稀疏方向的耗时明显更长，这正是「等时圈不是圆」的直接证据。
+ *        全部采样点（含圈外）都着色，圈内外的分界由等时圈边界线给出。
+ *
+ * 盲区点位另由 drawBlindMarks 用加粗红框标注，可按单个判定类别筛选。
  *
  * 设施点位采用**形状 + 颜色**双重编码：
  *     仅用颜色区分对色觉障碍人群不友好，因此每个类别额外赋予一种形状，
@@ -20,6 +26,28 @@ function offsetMeters(lng, lat, eastM, northM) {
     const dLat = northM / 111320;
     const dLng = eastM / (111320 * Math.cos((lat * Math.PI) / 180));
     return [lng + dLng, lat + dLat];
+}
+
+/** 两点间球面直线距离（米），用于展示「用错坐标系造成的偏移量」 */
+function distanceMeters(lng1, lat1, lng2, lat2) {
+    const R = 6371008.8;
+    const rad = Math.PI / 180;
+    const dLat = (lat2 - lat1) * rad;
+    const dLng = (lng2 - lng1) * rad;
+    const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+/** 以某点为中心、边长为 2*half 米的方格顶点（西北 → 东北 → 东南 → 西南） */
+function squareAround(lng, lat, half) {
+    return [
+        offsetMeters(lng, lat, -half, +half),
+        offsetMeters(lng, lat, +half, +half),
+        offsetMeters(lng, lat, +half, -half),
+        offsetMeters(lng, lat, -half, -half),
+    ];
 }
 
 /** 各类别的 SVG 形状路径（24×24 视口） */
@@ -133,31 +161,104 @@ const Layers = {
      * @param {number} stepM 网格间隔（米），即方块边长
      */
     drawAccessibility(points, stepM) {
-        // 略微放大，消除浮点误差造成的细缝
-        const half = (stepM / 2) * 1.03;
-
         // 可达性得分的实际分布通常落在 0.25~0.80，
         // 若直接把它当作色带比例，整张图会挤在中段、一片黄而分不出差异，
         // 因此把这个区间线性拉伸到完整色域以增强对比
         const SCORE_LO = 0.25;
         const SCORE_HI = 0.8;
 
-        points.forEach((p) => {
+        this._fillSquares(points, stepM, (p) => {
             const score = typeof p.accessibility === 'number' ? p.accessibility : 0;
             const normalized = (score - SCORE_LO) / (SCORE_HI - SCORE_LO);
-            const color = this.colorFor(1 - Math.max(0, Math.min(1, normalized)));
+            return this.colorFor(1 - Math.max(0, Math.min(1, normalized)));
+        });
+    },
 
-            const nw = offsetMeters(p.lng, p.lat, -half, +half);
-            const ne = offsetMeters(p.lng, p.lat, +half, +half);
-            const se = offsetMeters(p.lng, p.lat, +half, -half);
-            const sw = offsetMeters(p.lng, p.lat, -half, -half);
+    /**
+     * 绘制「步行耗时」热力图：颜色表达该点到中心点的真实步行耗时。
+     *
+     * 与可达性图的分工：
+     *     可达性图回答「到了之后有没有配套用」，
+     *     耗时图回答「路网让这段距离走起来到底多费劲」——
+     *     后者才能证明等时圈不是圆：同一个直线距离上，
+     *     路网稀疏的方向耗时会明显更长（颜色更深）。
+     *
+     * 着色范围是**全部采样点**（含圈外），因此图形外轮廓即采样范围，
+     * 圈内外的分界由等时圈边界线给出，两者叠加即可读出「走到哪超时」。
+     *
+     * @param {Array} points 等时圈采样点（每项含 duration / reachable）
+     * @param {number} stepM 网格间隔（米）
+     * @param {number} thresholdSeconds 可达阈值（秒），用于把耗时归一化到 0~1
+     */
+    drawDuration(points, stepM, thresholdSeconds) {
+        const T = thresholdSeconds || 900;
 
+        this._fillSquares(
+            points,
+            stepM,
+            (p) => {
+                if (typeof p.duration !== 'number') return '#9ca3af'; // 算路失败
+                if (!p.reachable) return '#7f1d1d';                   // 超出阈值：深红
+                // 圈内：0 → 绿，接近阈值 → 红
+                return this.colorFor(Math.max(0, Math.min(1, p.duration / T)));
+            },
+            0.62
+        );
+    },
+
+    /**
+     * 用统一的方格填充实现两种热力图。
+     * @param {Array} points
+     * @param {number} stepM
+     * @param {(p:Object)=>string} colorOf 由点计算填充色
+     * @param {number} [opacity]
+     */
+    _fillSquares(points, stepM, colorOf, opacity) {
+        // 略微放大，消除浮点误差造成的细缝
+        const half = (stepM / 2) * 1.03;
+        const fillOpacity = opacity == null ? 0.72 : opacity;
+
+        points.forEach((p) => {
             const polygon = new BMap.Polygon(
-                [nw, ne, se, sw].map((c) => new BMap.Point(c[0], c[1])),
-                { strokeWeight: 0, fillColor: color, fillOpacity: 0.72 }
+                squareAround(p.lng, p.lat, half).map((c) => new BMap.Point(c[0], c[1])),
+                { strokeWeight: 0, fillColor: colorOf(p), fillOpacity }
             );
             MapManager.map.addOverlay(polygon);
         });
+    },
+
+    /**
+     * 标注盲区点位。
+     *
+     * @param {Array} points 可达点集（每项含 blind / missing_categories）
+     * @param {number} stepM 网格间隔（米）
+     * @param {string} selected '__any__' 表示「缺失任一判定类别」；
+     *                          否则为该类别名，只标注缺失该类的点
+     * @returns {number} 被标注的点数
+     */
+    drawBlindMarks(points, stepM, selected) {
+        const half = (stepM / 2) * 1.04;
+        const any = !selected || selected === '__any__';
+
+        const targets = points.filter((p) =>
+            any ? !!p.blind : (p.missing_categories || []).indexOf(selected) >= 0
+        );
+
+        targets.forEach((p) => {
+            const polygon = new BMap.Polygon(
+                squareAround(p.lng, p.lat, half).map((c) => new BMap.Point(c[0], c[1])),
+                {
+                    strokeColor: '#b91c1c',
+                    strokeWeight: 2,
+                    strokeOpacity: 0.85,
+                    fillColor: '#dc2626',
+                    fillOpacity: 0.18,
+                }
+            );
+            MapManager.map.addOverlay(polygon);
+        });
+
+        return targets.length;
     },
 
     /**
@@ -171,7 +272,10 @@ const Layers = {
      * @param {number} stepM 网格间隔（米）
      */
     drawBoundary(points, stepM) {
-        const reachable = points.filter((p) => p.reachable);
+        // 兼容两种入参：等时圈全量采样点（含 unreachable）与盲区点集。
+        // 盲区点集（BlindSpotPoint）本身只包含可达点、没有 reachable 字段，
+        // 若按 p.reachable 过滤会把整份数据判成空、边界永远画不出来。
+        const reachable = points.filter((p) => p.reachable !== false);
         if (!reachable.length) return;
 
         // 量化精度约 11m：既能容忍浮点误差，又远小于网格间隔，不会误判邻接

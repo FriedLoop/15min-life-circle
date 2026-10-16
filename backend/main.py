@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
-from app.routers import config, geocode, health, isochrone, poi, report
+from app.routers import config, convert, geocode, health, isochrone, poi, report
 from app.services.baidu_client import BaiduApiError
 
 app = FastAPI(
@@ -45,6 +45,7 @@ app.include_router(health.router)
 app.include_router(config.router)
 app.include_router(poi.router)
 app.include_router(geocode.router)
+app.include_router(convert.router)
 app.include_router(isochrone.router)
 app.include_router(report.router)
 

@@ -1,10 +1,27 @@
 """Pydantic 数据模型。
 
-统一坐标系约定：所有对外接口一律使用 **BD09（百度经纬度）**，
-与百度地图 JS API 点击地图得到的坐标一致，无需在前后端之间反复换算。
+坐标系约定：
+    所有对外接口的**输出**统一为 **BD09（百度经纬度）**，与百度地图 JS API
+    点击地图得到的坐标一致，前后端之间无需反复换算。
+
+    输入侧可通过 `coord_type` 声明来源坐标系（bd09 / gcj02 / wgs84），
+    后端先转换为 BD09 再分析。这一步不能省：WGS84（GPS）或 GCJ02（高德/腾讯）
+    的坐标若被当成 BD09 直接使用，会造成数百米整体偏移，
+    等时圈形状与盲区结论会全部失真。
 """
 
+from typing import Annotated, Literal
+
 from pydantic import BaseModel, Field
+
+# 支持的输入坐标系；非 BD09 时由后端统一转换
+CoordType = Annotated[
+    Literal["bd09", "gcj02", "wgs84"],
+    Field(
+        description="输入坐标所属坐标系：bd09（默认，百度）、"
+        "gcj02（高德/腾讯）、wgs84（GPS / GeoJSON）。非 BD09 时先转换为 BD09 再分析"
+    ),
+]
 
 
 class CenterPoint(BaseModel):
@@ -12,6 +29,40 @@ class CenterPoint(BaseModel):
 
     lng: float = Field(..., description="经度（BD09）")
     lat: float = Field(..., description="纬度（BD09）")
+
+
+# ---------------------------------------------------------------------------
+# 坐标转换
+# ---------------------------------------------------------------------------
+class ConvertPoint(BaseModel):
+    """一个经纬度坐标点。"""
+
+    lng: float
+    lat: float
+
+
+class ConvertRequest(BaseModel):
+    """坐标转换请求：把其它坐标系坐标转为 BD09。"""
+
+    points: list[ConvertPoint] = Field(
+        ..., min_length=1, max_length=100, description="待转换坐标，单次最多 100 个"
+    )
+    coord_type: CoordType = "wgs84"
+    use_api: bool = Field(
+        default=True,
+        description="是否调用百度 geoconv 接口（结果与百度地图渲染完全一致）；"
+        "设为 false 则走本地算法，不消耗配额",
+    )
+
+
+class ConvertResponse(BaseModel):
+    """坐标转换响应。"""
+
+    source: str = Field(..., description="输入坐标系")
+    target: str = Field(default="bd09", description="输出坐标系")
+    method: str = Field(..., description="api=百度 geoconv 接口；local=本地算法兜底")
+    points: list[ConvertPoint]
+    message: str = Field(default="", description="降级或异常说明")
 
 
 # ---------------------------------------------------------------------------
@@ -35,6 +86,7 @@ class PoiSearchRequest(BaseModel):
     lng: float = Field(..., description="经度（BD09）")
     lat: float = Field(..., description="纬度（BD09）")
     radius: int = Field(default=1000, ge=1, le=50000, description="检索半径（米）")
+    coord_type: CoordType = "bd09"
     categories: list[str] | None = Field(
         default=None, description="只返回指定类别；为空表示全部"
     )
@@ -77,6 +129,7 @@ class ReverseGeocodeRequest(BaseModel):
 
     lng: float
     lat: float
+    coord_type: CoordType = "bd09"
 
 
 class ReverseGeocodeResponse(BaseModel):
@@ -96,9 +149,13 @@ class ReverseGeocodeResponse(BaseModel):
 class IsochronePoint(BaseModel):
     """单个网格点的可达性结果。
 
-    注意：前端热力图**不是**用这里的 duration 着色，而是用
-    BlindSpotPoint.accessibility（设施可达性）。duration 只用于判定
-    reachable，以及在降级/诊断场景中展示。
+    两种着色口径都有数据来源：
+        BlindSpotPoint.accessibility  设施可达性（「到了之后有没有东西用」）
+        本类的 duration               步行耗时（「这段路走起来多费劲」）
+    前端可在两种图层间切换，因此两个字段都必须如实回传。
+
+    duration 在启用分级网格时可能是**插值估算值**（用 interpolated 标记）：
+    几何性质已能定论的点不再消耗算路配额，其耗时由 IDW 插值补全。
     """
 
     lng: float
@@ -108,6 +165,11 @@ class IsochronePoint(BaseModel):
     )
     distance_m: int | None = Field(default=None, description="路网距离（米）")
     reachable: bool = Field(default=False, description="是否在时间阈值内可达")
+    interpolated: bool = Field(
+        default=False,
+        description="duration 是否为插值估算值（未消耗算路配额）。"
+        "仅在分级网格策略下出现；等时圈边界判定不依赖该值",
+    )
 
 
 class IsochroneRequest(BaseModel):
@@ -115,6 +177,7 @@ class IsochroneRequest(BaseModel):
 
     lng: float = Field(..., description="中心点经度（BD09）")
     lat: float = Field(..., description="中心点纬度（BD09）")
+    coord_type: CoordType = "bd09"
     walk_minutes: int = Field(
         default=15, ge=1, le=60, description="步行时间阈值（分钟）"
     )
@@ -126,6 +189,13 @@ class IsochroneRequest(BaseModel):
     )
     radius_m: int | None = Field(
         default=None, ge=100, le=5000, description="网格覆盖半径（米）；为空取配置值"
+    )
+    coarse_grid: bool = Field(
+        default=False,
+        description="是否启用「分级网格 + IDW 插值」：用几何性质剪枝、只对灰色地带"
+        "做真实算路，可显著降低算路调用量（见响应的 routed_points）。"
+        "注意这是**有损近似**：路网被水域/围墙切断时剪枝可能误判，"
+        "实测松山湖面积误差 7.94%、5 个点判定相反；配额充足时请用默认的 false",
     )
 
 
@@ -144,6 +214,17 @@ class IsochroneResponse(BaseModel):
     degraded: bool = Field(default=False, description="是否为降级估算结果")
     cached: bool = Field(default=False, description="结果是否来自缓存（未消耗配额）")
     message: str = Field(default="", description="降级或异常说明")
+    # ---- 网格策略与配额实证：让「省了多少算路」可被直接核对 ----
+    strategy: str = Field(
+        default="single", description="网格策略：single=单级精细网格；coarse=分级网格+IDW 插值"
+    )
+    coarse_step_m: int = Field(default=0, description="粗网格间隔（米）；0 表示未启用分级网格")
+    routed_points: int = Field(
+        default=0, description="实际发起批量算路的终点数（含粗网格采样与灰色地带精算）"
+    )
+    interpolated_points: int = Field(
+        default=0, description="耗时由 IDW 插值补全的网格点数（未消耗算路配额）"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -193,6 +274,7 @@ class BlindSpotRequest(BaseModel):
         "与 categories 分开，是因为用全部 10 类判定时，"
         "养老这类普遍稀缺的设施会把盲区率推向 100%，失去区分度",
     )
+    coord_type: CoordType = "bd09"
     threshold_m: int = Field(default=1000, ge=100, le=5000, description="判定阈值（米）")
     walk_minutes: int = Field(default=15, ge=1, le=60, description="生活圈时间阈值")
 
@@ -203,7 +285,10 @@ class BlindSpotResponse(BaseModel):
     center: CenterPoint
     categories: list[str] = Field(..., description="参与覆盖率统计的类别")
     judge_categories: list[str] = Field(
-        default_factory=list, description="实际用于判定「是否盲区」的类别"
+        default_factory=list,
+        description="实际用于判定「是否盲区」的类别。**为空表示本次未做盲区判定**"
+        "（用户把关键三类全取消勾选），此时 blind_points 恒为 0，"
+        "调用方必须按此字段区分「没有盲区」与「未判定」",
     )
     threshold_m: int
     total_points: int = Field(..., description="参与判定的可达点数")
@@ -248,6 +333,14 @@ class ReportRequest(BaseModel):
         default=None, ge=300, le=5000, description="网格覆盖半径（米），为空取默认值"
     )
     categories: list[str] | None = None
+    coord_type: CoordType = "bd09"
+    coarse_grid: bool = Field(
+        default=False,
+        description="是否启用「分级网格 + IDW 插值」的算路配额优化。"
+        "这是有损近似：剪枝依赖「路网 <= 绕行系数 × 直线距离」，"
+        "在地形被切断处会误判（实测松山湖面积误差 7.94%）。"
+        "真实算路量见 isochrone.routed_points",
+    )
     with_address: bool = Field(
         default=True, description="是否调用逆地理编码获取地址（消耗 1 次配额）"
     )

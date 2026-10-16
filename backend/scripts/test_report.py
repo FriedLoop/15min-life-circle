@@ -87,7 +87,7 @@ async def run(
         print(f"  可达性得分：最小 {min(scores):.2f} / 最大 {max(scores):.2f} / "
               f"平均 {sum(scores) / len(scores):.2f}（热力图着色依据）")
     if bs.failed_categories:
-        print(f"  ⚠️ 检索失败的类别：{'、'.join(bs.failed_categories)}")
+        print(f"  [WARN] 检索失败的类别：{'、'.join(bs.failed_categories)}")
         print("     （这部分覆盖率不可信，多因触及接口限流，建议稍后重试）")
     print(f"  盲区点 {bs.blind_points} / {bs.total_points} "
           f"（{blind_rate * 100:.1f}%）")

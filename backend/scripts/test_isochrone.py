@@ -93,10 +93,10 @@ async def run(lng: float, lat: float, step_m: int | None = None) -> None:
 
     print("\n" + "-" * 60)
     if again.cached:
-        print("缓存验证：✅ 再次查询命中缓存，未消耗配额")
+        print("缓存验证：[OK] 再次查询命中缓存，未消耗配额")
         print(f"本次实际消耗配额：约 {result.total_points} 条（仅第一次）")
     else:
-        print("缓存验证：⚠️ 再次查询未命中，请检查 CACHE_ENABLED 配置")
+        print("缓存验证：[WARN] 再次查询未命中，请检查 CACHE_ENABLED 配置")
         print(f"本次消耗配额：约 {result.total_points * 2} 条（两次均真实请求）")
     print("-" * 60)
 

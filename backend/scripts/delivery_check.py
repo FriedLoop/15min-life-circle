@@ -6,8 +6,8 @@
 1. 交付物完整性（文档、部署脚本、CI、依赖清单……）
 2. 前端资源完整性（index.html 引用的本地文件都存在）
 3. 密钥安全（.env 未被追踪、示例文件中只有占位符、镜像不含密钥）
-4. 环境变量文档一致性（配置字段 ↔ .env.example ↔ README）
-5. API 契约一致性（代码注册的路由 ↔ README 中的接口表）
+4. 环境变量文档一致性（配置字段、.env.example、README 三方比对）
+5. API 契约一致性（代码注册的路由与 README 接口表双向比对）
 6. 静态检查（ruff）
 7. 单元测试（pytest）
 8. 交付要求与评分维度逐条核对（对照赛题《交付要求》与《评审维度》）
@@ -211,6 +211,28 @@ def check_frontend_assets(report: Report) -> None:
     )
     modules = sorted(p.name for p in (FRONTEND / "js").glob("*.js"))
     report.add(OK if modules else FAIL, f"前端 JS 模块 {len(modules)} 个", "、".join(modules))
+    check_dom_bindings(report, html)
+
+
+def check_dom_bindings(report: Report, html: str) -> None:
+    """前端 JS 里 $('id') 引用的元素必须真的存在于 index.html。
+
+    为什么值得单列一条：这类错误**不会报错**——$ 取到 null，
+    后续 el.hidden / el.textContent 直接抛 TypeError 或被 if 守卫静默跳过，
+    表现为「某个按钮没反应」或「改了结构之后功能悄悄失效」。
+    本项目已经踩过一次同类问题（layers.js 按不存在的 p.reachable 过滤，
+    导致等时圈边界永远画不出来却毫无提示）。
+    """
+    html_ids = set(re.findall(r'id="([^"]+)"', html))
+    js_sources = "\n".join(_read(p) for p in sorted((FRONTEND / "js").glob("*.js")))
+    used = set(re.findall(r"\$\('([^']+)'\)", js_sources))
+    # 允许 JS 侧拼出来的 id（如 $('panel-' + kind)）无法静态解析，这里只查字面量
+    missing = sorted(used - html_ids)
+    report.check(
+        not missing,
+        f"JS 里 $('id') 引用的元素均在 index.html 中存在（{len(used)} 个）",
+        detail_fail="index.html 中不存在：" + "、".join(missing),
+    )
 
 
 # --------------------------------------------------------------------------
@@ -416,6 +438,9 @@ RUBRIC: tuple[RubricItem, ...] = (
         "交付② 预置示例数据（评审可一键加载样例点位）",
         (
             ("backend/app/core/samples.py", ("SAMPLE_LOCATIONS", "113.881641", "113.779678")),
+            # 第三个点位是赛题要求的「社区/街道」样本（虎门镇北栅行政小区），
+            # 必须与前两点同为「地理编码 + 地点检索」交叉验证过的坐标
+            ("backend/app/core/samples.py", ("113.723151", "九方工贸大厦")),
             ("backend/app/routers/config.py", ("SAMPLE_LOCATIONS",)),
         ),
     ),
@@ -438,6 +463,20 @@ RUBRIC: tuple[RubricItem, ...] = (
             ("backend/app/services/geocoding.py", ("/geocoding/v3", "/reverse_geocoding/v3")),
             ("backend/app/services/poi.py", ("/place/v2/search",)),
             ("backend/app/services/routematrix.py", ("/routematrix/v2/walking",)),
+        ),
+    ),
+    (
+        "功能① 坐标转换能力（WGS84 / GCJ02 / BD09 互转 + 请求入口统一转 BD09）",
+        (
+            (
+                "backend/app/utils/coordinate.py",
+                ("wgs84_to_gcj02", "gcj02_to_bd09", "bd09_to_gcj02"),
+            ),
+            ("backend/app/routers/convert.py", ("/convert",)),
+            ("backend/app/services/coordconv.py", ("to_bd09_point",)),
+            # 前端必须能声明坐标系，否则「坐标转换」只有接口、没有入口
+            ("frontend/js/main.js", ("coord_type", "convertAndLocate")),
+            ("frontend/index.html", ('id="coord-type"',)),
         ),
     ),
     (
@@ -480,19 +519,48 @@ RUBRIC: tuple[RubricItem, ...] = (
             ("docs/技术方案.md", ("网格采样", "直线初筛")),
         ),
     ),
-    # ---- 4. 产品交互与用户体验 15% ----
     (
-        "产品① 可视化：热力图 + 柱状图 + 雷达图",
+        "深度③ IDW 插值：分级网格 + 反距离加权，并给出三策略实测对照",
         (
-            ("frontend/js/layers.js", ("drawAccessibility",)),
-            ("frontend/js/charts.js", ("renderCoverage", "renderRadar")),
+            ("backend/app/utils/geo.py", ("idw_interpolate",)),
+            ("backend/app/services/isochrone.py", ("interpolated", "routed_points")),
+            ("backend/scripts/compare_grid_strategies.py", ("SECTOR_RADII_M",)),
+            ("docs/技术方案.md", ("IDW", "面积误差")),
         ),
     ),
     (
-        "产品② 用户可自定义地图中心点",
+        "深度② 配额实证：响应回传真实算路量，前端展示缓存与精算次数",
+        (
+            ("backend/app/schemas/models.py", ("routed_points", "interpolated_points")),
+            ("frontend/js/main.js", ("renderCacheBadge", "precise_calls")),
+        ),
+    ),
+    (
+        "深度③ 数据可信度：用政务公开权威名录交叉校验 POI 检索",
+        (
+            ("backend/scripts/collect_authority_data.py", ("东莞市医疗保障局", "东莞市教育局")),
+            ("backend/scripts/authority_benchmark.py", ("_name_hit", "baidu_knows_it")),
+            # 冻结的名录快照必须入库，否则评审无法离线复现校验结果
+            ("backend/scripts/authority_benchmark/dongguan_pharmacy.csv", ("镇街", "地址")),
+            ("backend/scripts/authority_benchmark/manifest.json", ("publisher", "collected_at")),
+            ("docs/技术方案.md", ("权威名录交叉校验", "召回率")),
+        ),
+    ),
+    # ---- 4. 产品交互与用户体验 15% ----
+    (
+        "产品① 可视化：双图层热力图 + 柱状图 + 雷达图 + 逐类盲区率",
+        (
+            ("frontend/js/layers.js", ("drawAccessibility", "drawDuration", "drawBlindMarks")),
+            ("frontend/js/charts.js", ("renderCoverage", "renderRadar")),
+            ("frontend/js/main.js", ("renderCategoryTable", "renderMap")),
+        ),
+    ),
+    (
+        "产品② 用户可自定义地图中心点 + 设施检索面板",
         (
             ("frontend/js/map.js", ("setCenter", "onSelect")),
-            ("frontend/js/main.js", ("renderSamples",)),
+            ("frontend/js/main.js", ("renderSamples", "runPoiSearch")),
+            ("frontend/js/api.js", ("getPoi", "convert")),
         ),
     ),
     # ---- 4. 开源工程规范 15% ----
@@ -615,10 +683,42 @@ def check_docker(report: Report) -> None:
 
 
 # --------------------------------------------------------------------------
-# 9. 文档一致性
+# 9. 文档与跨平台一致性
 # --------------------------------------------------------------------------
+# Windows PowerShell 控制台默认 GBK(cp936)。脚本输出里一旦出现对勾、警告、对号（U+2713 / U+26A0 / U+2705）这类
+# 不在 GBK 内的符号，print 会直接抛 UnicodeEncodeError 并中断整个脚本——
+# backend/scripts 下确实因此崩过（resolve_location.py 在打印结论前就挂了）。
+# 所以源码统一要求「可被 GBK 编码」，这是本项目 Windows 可用性的一部分。
+_CONSOLE_ENCODING = "gbk"
+_SOURCE_SKIP_DIRS = frozenset({"venv", ".venv", "__pycache__", ".pytest_cache", ".ruff_cache"})
+
+
+def _is_console_safe(char: str) -> bool:
+    try:
+        char.encode(_CONSOLE_ENCODING)
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
+def check_console_compat(report: Report) -> None:
+    """源码中不得出现 GBK 无法编码的字符（会中断 Windows 控制台脚本）。"""
+    offenders: list[str] = []
+    for path in sorted(BACKEND.rglob("*.py")):
+        if _SOURCE_SKIP_DIRS & set(path.parts):
+            continue
+        bad = sorted({char for char in _read(path) if not _is_console_safe(char)})
+        if bad:
+            offenders.append(f"{path.relative_to(ROOT)}: {' '.join(bad)}")
+    report.check(
+        not offenders,
+        f"源码字符可在 Windows {_CONSOLE_ENCODING.upper()} 控制台输出",
+        detail_fail="含无法编码的字符（会抛 UnicodeEncodeError）：" + "；".join(offenders),
+    )
+
+
 def check_stale_references(report: Report) -> None:
-    report.section("9. 文档一致性")
+    report.section("9. 文档与跨平台一致性")
     stale = [rel for rel in STALE_REFERENCES if (ROOT / rel).exists()]
     report.check(not stale, "STALE_REFERENCES 中的废弃配置未残留", detail_fail="、".join(stale))
 
@@ -633,6 +733,7 @@ def check_stale_references(report: Report) -> None:
         "文档未引用已删除的流水线配置",
         detail_fail="；".join(mentioned),
     )
+    check_console_compat(report)
 
 
 def main() -> int:
